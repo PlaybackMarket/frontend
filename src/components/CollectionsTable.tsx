@@ -72,7 +72,7 @@ export function CollectionsTable() {
           onClick={() => setActiveTab('collections')}
           className={`font-medium py-2 uppercase tracking-wider blur-tab ${
             activeTab === 'collections'
-              ? 'text-[#FF6B00] border-b-2 border-[#FF6B00] active'
+              ? 'text-[#0099FF] border-b-2 border-[#0099FF] active'
               : 'text-gray-400 hover:text-white'
           }`}
         >
@@ -82,7 +82,7 @@ export function CollectionsTable() {
           onClick={() => setActiveTab('lending')}
           className={`font-medium py-2 uppercase tracking-wider blur-tab ${
             activeTab === 'lending'
-              ? 'text-[#FF6B00] border-b-2 border-[#FF6B00] active'
+              ? 'text-[#0099FF] border-b-2 border-[#0099FF] active'
               : 'text-gray-400 hover:text-white'
           }`}
         >
@@ -92,7 +92,7 @@ export function CollectionsTable() {
           onClick={() => setActiveTab('borrowing')}
           className={`font-medium py-2 uppercase tracking-wider blur-tab ${
             activeTab === 'borrowing'
-              ? 'text-[#FF6B00] border-b-2 border-[#FF6B00] active'
+              ? 'text-[#0099FF] border-b-2 border-[#0099FF] active'
               : 'text-gray-400 hover:text-white'
           }`}
         >
@@ -102,7 +102,7 @@ export function CollectionsTable() {
           onClick={() => setActiveTab('assets')}
           className={`font-medium py-2 uppercase tracking-wider blur-tab ${
             activeTab === 'assets'
-              ? 'text-[#FF6B00] border-b-2 border-[#FF6B00] active'
+              ? 'text-[#0099FF] border-b-2 border-[#0099FF] active'
               : 'text-gray-400 hover:text-white'
           }`}
         >
@@ -112,7 +112,7 @@ export function CollectionsTable() {
 
       {loading ? (
         <div className='flex justify-center items-center py-20'>
-          <div className='w-10 h-10 border-4 border-gray-600 border-t-[#FF6B00] rounded-full blur-loading'></div>
+          <div className='w-10 h-10 border-4 border-gray-600 border-t-[#0099FF] rounded-full blur-loading'></div>
           <span className='ml-3 text-gray-400'>Loading collections...</span>
         </div>
       ) : collections.length === 0 ? (
@@ -195,7 +195,7 @@ export function CollectionsTable() {
                     <div>
                       <Link
                         href={`/collection/${collection.id}`}
-                        className='text-white hover:text-[#FF6B00] blur-text-hover flex items-center'
+                        className='text-white hover:text-[#0099FF] blur-text-hover flex items-center'
                       >
                         {collection.name}
                         {collection.verified && (
@@ -239,18 +239,54 @@ export function CollectionsTable() {
                   {collection.totalBorrowed}
                 </td>
                 <td className='py-4 px-4'>
-                  <div className='flex space-x-2'>
+                  <div className='flex space-x-4'>
                     <Link
                       href={`/collection/${collection.id}?action=lend`}
-                      className='px-3 py-1 bg-[#FF6B00] text-white text-sm rounded hover:bg-[#FF8C40] transition-all blur-button'
+                      className='p-2 text-white rounded-full hover:bg-gray-800 transition-all relative group blur-button'
+                      aria-label='Lend'
                     >
-                      Lend
+                      <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        width='20'
+                        height='20'
+                        viewBox='0 0 24 24'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='2'
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        className='text-[#0099FF]'
+                      >
+                        <path d='M12 5v14' />
+                        <path d='m19 12-7-7-7 7' />
+                      </svg>
+                      <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10'>
+                        Lend
+                      </div>
                     </Link>
                     <Link
                       href={`/collection/${collection.id}?action=borrow`}
-                      className='px-3 py-1 bg-[#FF6B00] text-white text-sm rounded hover:bg-[#FF8C40] transition-all blur-button'
+                      className='p-2 text-white rounded-full hover:bg-gray-800 transition-all relative group blur-button'
+                      aria-label='Borrow'
                     >
-                      Borrow
+                      <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        width='20'
+                        height='20'
+                        viewBox='0 0 24 24'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='2'
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        className='text-[#0099FF]'
+                      >
+                        <path d='M12 19V5' />
+                        <path d='m5 12 7 7 7-7' />
+                      </svg>
+                      <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10'>
+                        Borrow
+                      </div>
                     </Link>
                   </div>
                 </td>

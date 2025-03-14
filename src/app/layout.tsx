@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { WalletProvider } from '@/components/WalletProvider';
 import { WalletButton } from '@/components/WalletButton';
@@ -7,12 +6,6 @@ import { ToastProvider } from '@/components/ToastProvider';
 import { NetworkProvider } from '@/contexts/NetworkContext';
 import { NetworkToggle } from '@/components/NetworkToggle';
 import Link from 'next/link';
-
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Playback - Gaming Asset Lending Protocol',
@@ -27,9 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang='en'>
-      <body
-        className={`${inter.variable} antialiased bg-black text-white font-sans`}
-      >
+      <body className='antialiased bg-black text-white'>
         <NetworkProvider>
           <WalletProvider>
             <ToastProvider />
