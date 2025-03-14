@@ -1,18 +1,20 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #ffffff;
   --foreground-rgb: 255, 255, 255;
   --background-start-rgb: 0, 0, 0;
   --background-end-rgb: 0, 0, 0;
+  --primary: #ff6b00;
+  --primary-hover: #ff8c40;
+  --blur-transition: all 0.2s ease;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,7 +27,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', sans-serif;
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
       to bottom,
@@ -36,25 +38,98 @@ body {
   min-height: 100vh;
 }
 
-.glitch-text {
-  text-shadow: 2px 2px 0px rgba(0, 255, 255, 0.2),
-    -2px -2px 0px rgba(255, 0, 255, 0.2);
-  animation: glitch 3s infinite;
+/* Blur.io style button effects */
+.blur-button {
+  position: relative;
+  overflow: hidden;
+  transition: var(--blur-transition);
 }
 
-@keyframes glitch {
+.blur-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.2);
+}
+
+.blur-button:active {
+  transform: translateY(0);
+}
+
+/* Blur.io style card hover effects */
+.blur-card {
+  transition: var(--blur-transition);
+}
+
+.blur-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Blur.io style input focus effects */
+.blur-input {
+  transition: var(--blur-transition);
+}
+
+.blur-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.2);
+}
+
+/* Blur.io style tab hover effects */
+.blur-tab {
+  position: relative;
+  transition: var(--blur-transition);
+}
+
+.blur-tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: var(--primary);
+  transition: var(--blur-transition);
+  transform: translateX(-50%);
+}
+
+.blur-tab:hover::after {
+  width: 100%;
+}
+
+.blur-tab.active::after {
+  width: 100%;
+}
+
+/* Blur.io style loading animation */
+@keyframes blur-loading {
   0% {
-    text-shadow: 2px 2px 0px rgba(0, 255, 255, 0.2),
-      -2px -2px 0px rgba(255, 0, 255, 0.2);
-  }
-  50% {
-    text-shadow: -2px 2px 0px rgba(0, 255, 255, 0.2),
-      2px -2px 0px rgba(255, 0, 255, 0.2);
+    transform: rotate(0deg);
   }
   100% {
-    text-shadow: 2px 2px 0px rgba(0, 255, 255, 0.2),
-      -2px -2px 0px rgba(255, 0, 255, 0.2);
+    transform: rotate(360deg);
   }
+}
+
+.blur-loading {
+  animation: blur-loading 1.2s linear infinite;
+}
+
+/* Blur.io style hover glow effect */
+.blur-glow {
+  transition: var(--blur-transition);
+}
+
+.blur-glow:hover {
+  filter: drop-shadow(0 0 8px rgba(255, 107, 0, 0.5));
+}
+
+/* Blur.io style text hover effect */
+.blur-text-hover {
+  transition: var(--blur-transition);
+}
+
+.blur-text-hover:hover {
+  color: var(--primary);
 }
 
 /* Sonic-inspired animations */
@@ -79,7 +154,7 @@ body {
 }
 
 .sonic-button::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: -100%;
@@ -88,7 +163,7 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(78, 222, 128, 0.2),
+    rgba(255, 107, 0, 0.2),
     transparent
   );
   transition: 0.5s;
