@@ -347,3 +347,5 @@ For the hackathon, the MVP will focus on the following core functionality:
 - Clear presentation of lending terms
 - Transparent transaction process
 - Responsive design across devices 
+
+
