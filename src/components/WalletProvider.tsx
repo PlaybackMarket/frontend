@@ -6,9 +6,14 @@ import {
   WalletProvider as SolanaWalletProvider,
   useWallet,
 } from '@solana/wallet-adapter-react';
-import { NightlyWalletAdapter } from '@solana/wallet-adapter-wallets';
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  NightlyWalletAdapter,
+} from '@solana/wallet-adapter-wallets';
 import { useMemo, useState, useEffect } from 'react';
 import { useNetwork } from '@/contexts/NetworkContext';
+import dynamic from 'next/dynamic';
 
 export function CustomWalletMultiButton() {
   const { select, wallets, publicKey, disconnect } = useWallet();
@@ -82,28 +87,33 @@ export function CustomWalletMultiButton() {
   );
 }
 
-export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const { network } = useNetwork();
-  const wallets = useMemo(() => [new NightlyWalletAdapter()], []);
+// Create a client-side only version of the provider
+const ClientWalletProvider = dynamic(
+  () =>
+    Promise.resolve(({ children }: { children: React.ReactNode }) => {
+      const { network } = useNetwork();
+      const wallets = useMemo(
+        () => [
+          new PhantomWalletAdapter(),
+          new SolflareWalletAdapter(),
+          new NightlyWalletAdapter(),
+        ],
+        []
+      );
 
-  // Use state to track if we're on the client
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Only run once on the client
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Render a simple container during SSR
-  if (!isMounted) {
-    return <>{children}</>;
+      return (
+        <ConnectionProvider endpoint={network.endpoint}>
+          <SolanaWalletProvider wallets={wallets} autoConnect>
+            {children}
+          </SolanaWalletProvider>
+        </ConnectionProvider>
+      );
+    }),
+  {
+    ssr: false,
   }
+);
 
-  return (
-    <ConnectionProvider endpoint={network.endpoint}>
-      <SolanaWalletProvider wallets={wallets} autoConnect>
-        {children}
-      </SolanaWalletProvider>
-    </ConnectionProvider>
-  );
+export function WalletProvider({ children }: { children: React.ReactNode }) {
+  return <ClientWalletProvider>{children}</ClientWalletProvider>;
 }
