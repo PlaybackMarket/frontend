@@ -29,7 +29,7 @@ type NetworkContextType = {
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
-  const [network, setNetwork] = useState<Network>(NETWORKS.MAINNET);
+  const [network, setNetwork] = useState<Network>(NETWORKS.TESTNET);
 
   return (
     <NetworkContext.Provider value={{ network, setNetwork }}>
