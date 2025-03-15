@@ -96,10 +96,9 @@ export async function fetchAllCollections(isMainnet: boolean = true): Promise<Co
   try {
     const rpcUrl = isMainnet ? MAINNET_RPC_URL : TESTNET_RPC_URL;
     
-    // Known collection mint addresses on Sonic SVM
+    // Known collection mint address
     const collectionMints = [
-      // TODO: Replace with actual Sonic SVM collection addresses
-      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Example address
+      '6516ETJzXYgRjuy9V6UFszdghSfPa578jw2przR2H8ob', // Main collection
     ];
     
     // Fetch metadata for each collection
@@ -108,18 +107,23 @@ export async function fetchAllCollections(isMainnet: boolean = true): Promise<Co
         const metadata = await fetchMetadata(mintAddress, rpcUrl);
         
         if (metadata) {
+          // Get lending stats for the collection (to be implemented with Sonic SVM APIs)
+          const lendingStats = {
+            floorPrice: 1.5, // Example value
+            lendingAPY: 12.5, // Example value
+            collateralRequired: 100,
+            availableForLending: 10,
+            totalLent: 5,
+            totalBorrowed: 3,
+          };
+
           const collection: Collection = {
             id: mintAddress,
             name: metadata.onChain.name || 'Unknown Collection',
             symbol: metadata.onChain.symbol || '',
             image: metadata.offChain?.image,
             description: metadata.offChain?.description,
-            floorPrice: 0,
-            lendingAPY: 0,
-            collateralRequired: 100,
-            availableForLending: 0,
-            totalLent: 0,
-            totalBorrowed: 0,
+            ...lendingStats,
             verified: true,
           };
           
@@ -205,9 +209,28 @@ export async function fetchNFTsInCollection(collectionId: string, isMainnet: boo
       toast.error('Collection not found on Sonic SVM');
       return [];
     }
-    
-    // TODO: Implement fetching NFTs from the collection using Sonic SVM APIs
-    return [];
+
+    // For now, return example NFTs based on the collection metadata
+    const nfts: NFT[] = [];
+    const numNFTs = 10; // Example: 10 NFTs per collection
+
+    for (let i = 0; i < numNFTs; i++) {
+      const nft: NFT = {
+        id: `${collectionId}-${i + 1}`,
+        name: `${metadata.onChain.name} #${i + 1}`,
+        image: metadata.offChain?.image || '',
+        attributes: [
+          { trait_type: 'Power', value: Math.floor(Math.random() * 100) },
+          { trait_type: 'Level', value: Math.floor(Math.random() * 10) + 1 },
+        ],
+        owner: `${Math.random().toString(36).substring(2, 8)}...${Math.random().toString(36).substring(2, 8)}`,
+        listed: Math.random() > 0.5,
+        price: Math.random() * 2 + 0.1, // Random price between 0.1 and 2.1
+      };
+      nfts.push(nft);
+    }
+
+    return nfts;
   } catch (error) {
     console.error('Error fetching NFTs:', error);
     toast.error('Failed to fetch NFTs from Sonic SVM');
