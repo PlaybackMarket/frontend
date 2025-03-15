@@ -14,6 +14,17 @@ export function NetworkToggle() {
     toast.success(`Switched to ${newNetwork.label}`);
   };
 
+  const getNetworkColor = (networkName: string) => {
+    switch (networkName) {
+      case 'mainnet':
+        return 'bg-[#FF6B00]';
+      case 'testnet':
+        return 'bg-purple-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
   return (
     <div className='relative'>
       <button
@@ -21,9 +32,7 @@ export function NetworkToggle() {
         className='flex items-center gap-2 px-3 py-2 rounded-md text-sm border border-gray-700 bg-black hover:border-[#FF6B00] transition-all blur-button'
       >
         <span
-          className={`w-2 h-2 rounded-full ${
-            network.name === 'mainnet' ? 'bg-green-500' : 'bg-purple-500'
-          }`}
+          className={`w-2 h-2 rounded-full ${getNetworkColor(network.name)}`}
         ></span>
         <span className='text-white'>{network.label}</span>
         <svg
@@ -44,36 +53,24 @@ export function NetworkToggle() {
 
       {isOpen && (
         <div className='absolute top-full mt-2 right-0 bg-gray-900 border border-gray-700 rounded-md shadow-lg p-1 z-10 w-40 blur-card'>
-          <button
-            onClick={() => handleNetworkChange(NETWORKS.MAINNET)}
-            className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 blur-text-hover ${
-              network.name === 'mainnet'
-                ? 'bg-gray-800 text-white'
-                : 'text-gray-300 hover:bg-gray-800'
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                network.name === 'mainnet' ? 'bg-green-500' : 'bg-gray-600'
+          {Object.values(NETWORKS).map((networkOption) => (
+            <button
+              key={networkOption.name}
+              onClick={() => handleNetworkChange(networkOption)}
+              className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 blur-text-hover ${
+                network.name === networkOption.name
+                  ? 'bg-gray-800 text-white'
+                  : 'text-gray-300 hover:bg-gray-800'
               }`}
-            ></span>
-            {NETWORKS.MAINNET.label}
-          </button>
-          <button
-            onClick={() => handleNetworkChange(NETWORKS.TESTNET)}
-            className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 blur-text-hover ${
-              network.name === 'testnet'
-                ? 'bg-gray-800 text-white'
-                : 'text-gray-300 hover:bg-gray-800'
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                network.name === 'testnet' ? 'bg-purple-500' : 'bg-gray-600'
-              }`}
-            ></span>
-            {NETWORKS.TESTNET.label}
-          </button>
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${getNetworkColor(
+                  networkOption.name
+                )}`}
+              ></span>
+              {networkOption.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

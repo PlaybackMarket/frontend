@@ -32,8 +32,8 @@ export interface NFT {
 }
 
 // Sonic SVM RPC URLs
-const MAINNET_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_MAINNET_RPC || 'https://api.mainnet-alpha.sonic.game';
-const TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_TESTNET_RPC || 'https://devnet.sonic.game';
+const MAINNET_RPC_URL = process.env.NEXT_PUBLIC_SONIC_MAINNET_RPC || 'https://rpc.mainnet-alpha.sonic.game';
+const TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SONIC_TESTNET_RPC || 'https://api.testnet.sonic.game';
 
 /**
  * Fetch metadata for a given mint address using UMI
@@ -54,55 +54,35 @@ async function fetchMetadata(mintAddress: string, rpcUrl: string): Promise<{
   } | null;
 } | null> {
   try {
-    // Create a UMI instance with the provided RPC URL
     const umi = createUmi(rpcUrl);
-    
-    // Use the mplTokenMetadata plugin
     umi.use(mplTokenMetadata());
 
-    // Generate a signer and set up identity
     const keypair = generateSigner(umi);
     umi.use(signerIdentity(createSignerFromKeypair(umi, keypair)));
-    
-    // Convert the mint address to a UMI PublicKey
+
     const mintPublicKey = publicKey(mintAddress);
-    
-    try {
-      // Fetch the digital asset
-      const asset = await fetchDigitalAsset(umi, mintPublicKey);
-      
-      // Fetch the off-chain metadata if URI is available
-      let offChainMetadata = null;
-      if (asset.metadata.uri) {
-        try {
-          const response = await fetch(asset.metadata.uri);
-          offChainMetadata = await response.json();
-        } catch (error) {
-          console.error('Error fetching off-chain metadata:', error);
-          toast.error('Failed to fetch collection metadata');
-        }
+    const asset = await fetchDigitalAsset(umi, mintPublicKey);
+
+    let offChainMetadata = null;
+    if (asset.metadata.uri) {
+      try {
+        const response = await fetch(asset.metadata.uri);
+        offChainMetadata = await response.json();
+      } catch (error) {
+        console.error('Error fetching off-chain metadata:', error);
       }
-      
-      return {
-        onChain: {
-          name: asset.metadata.name,
-          symbol: asset.metadata.symbol,
-          uri: asset.metadata.uri,
-        },
-        offChain: offChainMetadata,
-      };
-    } catch (error) {
-      console.error(`Error fetching digital asset for ${mintAddress}:`, error);
-      if (error instanceof Error) {
-        toast.error(`Failed to fetch collection: ${error.message}`);
-      }
-      return null;
     }
+
+    return {
+      onChain: {
+        name: asset.metadata.name,
+        symbol: asset.metadata.symbol,
+        uri: asset.metadata.uri,
+      },
+      offChain: offChainMetadata,
+    };
   } catch (error) {
     console.error('Error in fetchMetadata:', error);
-    if (error instanceof Error) {
-      toast.error(`Failed to initialize collection reader: ${error.message}`);
-    }
     return null;
   }
 }
@@ -118,9 +98,8 @@ export async function fetchAllCollections(isMainnet: boolean = true): Promise<Co
     
     // Known collection mint addresses on Sonic SVM
     const collectionMints = [
-      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-      'So11111111111111111111111111111111111111112', // SOL
-      'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // BONK
+      // TODO: Replace with actual Sonic SVM collection addresses
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Example address
     ];
     
     // Fetch metadata for each collection
@@ -129,18 +108,12 @@ export async function fetchAllCollections(isMainnet: boolean = true): Promise<Co
         const metadata = await fetchMetadata(mintAddress, rpcUrl);
         
         if (metadata) {
-          // Extract data from metadata
-          const name = metadata.onChain.name;
-          const symbol = metadata.onChain.symbol;
-          const image = metadata.offChain?.image || '';
-          const description = metadata.offChain?.description || '';
-          
           const collection: Collection = {
             id: mintAddress,
-            name: name || 'Unknown Collection',
-            symbol: symbol || '',
-            image,
-            description,
+            name: metadata.onChain.name || 'Unknown Collection',
+            symbol: metadata.onChain.symbol || '',
+            image: metadata.offChain?.image,
+            description: metadata.offChain?.description,
             floorPrice: 0,
             lendingAPY: 0,
             collateralRequired: 100,
@@ -163,7 +136,7 @@ export async function fetchAllCollections(isMainnet: boolean = true): Promise<Co
     const collections = (await Promise.all(collectionsPromises)).filter((c): c is Collection => c !== null);
     
     if (collections.length === 0) {
-      toast.error('No collections found');
+      toast.error('No collections found on Sonic SVM');
       return [];
     }
     
@@ -229,15 +202,15 @@ export async function fetchNFTsInCollection(collectionId: string, isMainnet: boo
     const metadata = await fetchMetadata(collectionId, rpcUrl);
     
     if (!metadata) {
-      toast.error('Collection not found');
+      toast.error('Collection not found on Sonic SVM');
       return [];
     }
     
-    // For now, return an empty array since we don't have access to NFTs in the collection
+    // TODO: Implement fetching NFTs from the collection using Sonic SVM APIs
     return [];
   } catch (error) {
     console.error('Error fetching NFTs:', error);
-    toast.error('Failed to fetch NFTs');
+    toast.error('Failed to fetch NFTs from Sonic SVM');
     return [];
   }
 }
@@ -259,21 +232,18 @@ export async function fetchTokenCollections(isMainnet: boolean = true): Promise<
     const rpcUrl = isMainnet ? MAINNET_RPC_URL : TESTNET_RPC_URL;
     const connection = new Connection(rpcUrl);
     
-    // Get token info for common tokens
+    // Get token info for common tokens on Sonic SVM
     const tokenAddresses = [
-      'So11111111111111111111111111111111111111112', // SOL
-      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-      'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // BONK
+      // TODO: Replace with actual Sonic SVM token addresses
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Example address
     ];
     
     const tokensPromises = tokenAddresses.map(async (address) => {
       try {
         const tokenInfo = await connection.getTokenSupply(new PublicKey(address));
         return {
-          symbol: address === 'So11111111111111111111111111111111111111112' ? 'SOL' : 
-                 address === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' ? 'USDC' : 'BONK',
-          name: address === 'So11111111111111111111111111111111111111112' ? 'Solana' : 
-               address === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' ? 'USD Coin' : 'Bonk',
+          symbol: 'SONIC', // TODO: Get actual token symbol
+          name: 'Sonic Token', // TODO: Get actual token name
           price: 0,
           change24h: 0,
           supply: Number(tokenInfo.value.uiAmount),
@@ -296,14 +266,14 @@ export async function fetchTokenCollections(isMainnet: boolean = true): Promise<
     } => token !== null);
     
     if (tokens.length === 0) {
-      toast.error('No tokens found');
+      toast.error('No tokens found on Sonic SVM');
       return [];
     }
     
     return tokens;
   } catch (error) {
     console.error('Error fetching token collections:', error);
-    toast.error('Failed to fetch token collections');
+    toast.error('Failed to fetch token collections from Sonic SVM');
     return [];
   }
 }

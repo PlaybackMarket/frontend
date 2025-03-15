@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Network = {
   name: string;
@@ -10,14 +10,14 @@ export type Network = {
 
 export const NETWORKS = {
   MAINNET: {
-    name: "mainnet",
-    endpoint: "https://rpc.mainnet-alpha.sonic.game",
-    label: "Sonic Mainnet",
+    name: 'mainnet',
+    endpoint: 'https://rpc.mainnet-alpha.sonic.game',
+    label: 'Sonic Mainnet',
   },
   TESTNET: {
-    name: "testnet",
-    endpoint: "https://api.testnet.sonic.game",
-    label: "Sonic Testnet",
+    name: 'testnet',
+    endpoint: 'https://api.testnet.sonic.game',
+    label: 'Sonic Testnet',
   },
 };
 
@@ -41,7 +41,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 export function useNetwork() {
   const context = useContext(NetworkContext);
   if (context === undefined) {
-    throw new Error("useNetwork must be used within a NetworkProvider");
+    throw new Error('useNetwork must be used within a NetworkProvider');
   }
   return context;
 }
