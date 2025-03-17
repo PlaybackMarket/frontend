@@ -553,27 +553,93 @@ const LiquidateLoan: FC = () => {
   const wallet = useWallet();
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
-  const [loanAddress, setLoanAddress] = useState("");
-  const [listingAddress, setListingAddress] = useState("");
-  const [lenderAddress, setLenderAddress] = useState("");
+  const [liquidatableLoans, setLiquidatableLoans] = useState<any[]>([]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const provider = new AnchorProvider(
+    connection,
+    wallet as any,
+    AnchorProvider.defaultOptions()
+  );
+  const program = new Program<Sonic>(idl, provider as unknown as Provider);
+
+  // Fetch liquidatable loans when component mounts
+  useEffect(() => {
+    fetchLiquidatableLoans();
+    // Set up an interval to refresh the loans every minute
+    const interval = setInterval(fetchLiquidatableLoans, 60000);
+    return () => clearInterval(interval);
+  }, [connection, program]);
+
+  const fetchLiquidatableLoans = async () => {
+    if (!program) return;
+
     try {
-      const loanPubkey = new PublicKey(loanAddress);
-      const listingPubkey = new PublicKey(listingAddress);
-      const lenderPubkey = new PublicKey(lenderAddress);
-      await handleLiquidate(loanPubkey, listingPubkey, lenderPubkey);
+      // Get all active Loan accounts
+      const loans = await program.account.loan.all([
+        {
+          memcmp: {
+            offset:
+              8 + // discriminator
+              32 + // borrower
+              32 + // listing
+              8 + // start_time
+              8 + // end_time
+              8 + // collateral_amount
+              8, // interest_rate
+            bytes: bs58.encode(Buffer.from([1])), // is_active = true
+          },
+        },
+      ]);
+
+      // Filter loans that are past their end time
+      const currentTime = Math.floor(Date.now() / 1000);
+      const expiredLoans = loans.filter(
+        (loan) => loan.account.endTime < currentTime
+      );
+
+      // Fetch listing details for each expired loan
+      const enrichedLoans = await Promise.all(
+        expiredLoans.map(async (loan) => {
+          try {
+            const listing = await program.account.nftListing.fetch(
+              loan.account.listing
+            );
+            return {
+              ...loan,
+              listing,
+              timeOverdue: currentTime - loan.account.endTime,
+            };
+          } catch (error) {
+            console.error("Error fetching listing:", error);
+            return loan;
+          }
+        })
+      );
+
+      // Sort by most overdue first
+      enrichedLoans.sort((a, b) => b.timeOverdue - a.timeOverdue);
+      setLiquidatableLoans(enrichedLoans);
     } catch (error) {
-      console.error("Invalid public key:", error);
+      console.error("Error fetching liquidatable loans:", error);
+      toast.error("Failed to fetch liquidatable loans");
     }
   };
 
-  const handleLiquidate = async (
-    loanAddress: PublicKey,
-    listingAddress: PublicKey,
-    lenderAddress: PublicKey
-  ) => {
+  const formatOverdueTime = (seconds: number) => {
+    const days = Math.floor(seconds / (24 * 60 * 60));
+    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((seconds % (60 * 60)) / 60);
+
+    if (days > 0) return `${days}d ${hours}h overdue`;
+    if (hours > 0) return `${hours}h ${minutes}m overdue`;
+    return `${minutes}m overdue`;
+  };
+
+  const formatCollateral = (lamports: number) => {
+    return `${(lamports / 1e9).toFixed(2)} SOL`;
+  };
+
+  const handleLiquidate = async (loan: any) => {
     if (!wallet.publicKey) {
       toast.error("Please connect your wallet");
       return;
@@ -583,14 +649,6 @@ const LiquidateLoan: FC = () => {
     setLoading(true);
 
     try {
-      const provider = new AnchorProvider(
-        connection,
-        wallet as any,
-        AnchorProvider.defaultOptions()
-      );
-      setProvider(provider);
-      const program = new Program<Sonic>(idl, provider as unknown as Provider);
-
       const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
         program.programId
@@ -600,16 +658,17 @@ const LiquidateLoan: FC = () => {
         .liquidateLoan()
         .accounts({
           liquidator: wallet.publicKey,
-          lender: lenderAddress,
-          loan: loanAddress,
-          listing: listingAddress,
-
+          lender: loan.listing.lender,
+          loan: loan.publicKey,
+          listing: loan.account.listing,
           vault_authority: vault_authority,
           systemProgram: SystemProgram.programId,
         })
         .rpc();
 
       toast.success("Successfully liquidated loan!", { id: toastId });
+      // Refresh the list after successful liquidation
+      fetchLiquidatableLoans();
     } catch (error) {
       console.error("Error liquidating loan:", error);
       toast.error(`Failed to liquidate loan: ${error.message}`, {
@@ -622,39 +681,80 @@ const LiquidateLoan: FC = () => {
 
   return (
     <div className="p-4 border rounded">
-      <h2 className="text-xl mb-4">Liquidate Loan</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Loan Address"
-          value={loanAddress}
-          onChange={(e) => setLoanAddress(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
-        <input
-          type="text"
-          placeholder="Listing Address"
-          value={listingAddress}
-          onChange={(e) => setListingAddress(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
-        <input
-          type="text"
-          placeholder="Lender Address"
-          value={lenderAddress}
-          onChange={(e) => setLenderAddress(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl">Liquidatable Loans</h2>
         <button
-          type="submit"
-          disabled={
-            loading || !loanAddress || !listingAddress || !lenderAddress
-          }
-          className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          onClick={fetchLiquidatableLoans}
+          className="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded"
         >
-          {loading ? "Processing..." : "Liquidate Loan"}
+          Refresh
         </button>
-      </form>
+      </div>
+
+      <div className="space-y-4">
+        {liquidatableLoans.map((loan, index) => (
+          <div key={index} className="p-4 border rounded bg-gray-800">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-sm text-gray-400">NFT</p>
+                <p className="font-mono text-sm">
+                  {loan.listing.nftMint.toString().slice(0, 16)}...
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Status</p>
+                <p className="font-bold text-red-400">
+                  {formatOverdueTime(loan.timeOverdue)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-400">Collateral Available</p>
+                <p className="font-bold text-green-400">
+                  {formatCollateral(loan.account.collateralAmount)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Interest Rate</p>
+                <p>{loan.account.interestRate.toString()}%</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-400">Borrower</p>
+                <p className="font-mono text-sm">
+                  {loan.account.borrower.toString().slice(0, 16)}...
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Lender</p>
+                <p className="font-mono text-sm">
+                  {loan.listing.lender.toString().slice(0, 16)}...
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => handleLiquidate(loan)}
+              disabled={loading}
+              className="w-full bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            >
+              {loading ? "Processing..." : "Liquidate Loan"}
+            </button>
+          </div>
+        ))}
+        {liquidatableLoans.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-400">No liquidatable loans found</p>
+            <p className="text-gray-500 text-sm mt-2">
+              Loans become liquidatable after their repayment deadline
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
