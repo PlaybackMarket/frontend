@@ -129,11 +129,6 @@ const ListNFT: FC = () => {
           nftMint,
           lenderNftAccount,
           vaultNftAccount,
-          vaultAuthority: vault_authority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
         })
         .signers([listing])
         .rpc();
@@ -141,7 +136,7 @@ const ListNFT: FC = () => {
       toast.success("Successfully listed NFT!", { id: toastId });
     } catch (error) {
       console.error("Error listing NFT:", error);
-      toast.error(`Failed to list NFT: ${error.message}`, { id: toastId });
+      toast.error(`Failed to list NFT: ${error}`, { id: toastId });
     } finally {
       setLoading(false);
     }

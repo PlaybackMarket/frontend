@@ -129,10 +129,6 @@ const BorrowNFT: FC = () => {
           loan: loan.publicKey,
           borrowerNftAccount,
           vaultNftAccount,
-          vault_authority: vault_authority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
           nftMint: listing.account.nftMint,
         })
         .signers([loan])
@@ -143,7 +139,7 @@ const BorrowNFT: FC = () => {
       fetchListings();
     } catch (error) {
       console.error("Error borrowing NFT:", error);
-      toast.error(`Failed to borrow NFT: ${error.message}`, { id: toastId });
+      toast.error(`Failed to borrow NFT: ${error}`, { id: toastId });
     } finally {
       setLoading(false);
     }

@@ -115,8 +115,6 @@ const LiquidateLoan: FC = () => {
           lender: loan.listing.lender,
           loan: loan.publicKey,
           listing: loan.account.listing,
-          vault_authority: vault_authority,
-          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -125,7 +123,7 @@ const LiquidateLoan: FC = () => {
       fetchLiquidatableLoans();
     } catch (error) {
       console.error("Error liquidating loan:", error);
-      toast.error(`Failed to liquidate loan: ${error.message}`, {
+      toast.error(`Failed to liquidate loan: ${error}`, {
         id: toastId,
       });
     } finally {

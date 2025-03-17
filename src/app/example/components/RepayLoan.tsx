@@ -141,10 +141,6 @@ const RepayLoan: FC = () => {
           borrowerNftAccount,
           vaultNftAccount,
           lenderNftAccount,
-          vault_authority: vault_authority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -153,7 +149,7 @@ const RepayLoan: FC = () => {
       fetchActiveLoans();
     } catch (error) {
       console.error("Error repaying loan:", error);
-      toast.error(`Failed to repay loan: ${error.message}`, { id: toastId });
+      toast.error(`Failed to repay loan: ${error}`, { id: toastId });
     } finally {
       setLoading(false);
     }

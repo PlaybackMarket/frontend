@@ -139,8 +139,6 @@ const CancelListing: FC = () => {
           nftMint: listing.account.nftMint,
           vaultNftAccount,
           lenderNftAccount,
-          vault_authority: vault_authority,
-          tokenProgram: TOKEN_PROGRAM_ID,
         })
         .rpc();
 
@@ -149,7 +147,7 @@ const CancelListing: FC = () => {
       fetchListings();
     } catch (error) {
       console.error("Error canceling listing:", error);
-      toast.error(`Failed to cancel listing: ${error.message}`, {
+      toast.error(`Failed to cancel listing: ${error}`, {
         id: toastId,
       });
     } finally {
