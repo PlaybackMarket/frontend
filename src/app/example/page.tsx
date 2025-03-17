@@ -663,30 +663,88 @@ const RepayLoan: FC = () => {
   const wallet = useWallet();
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
-  const [loanAddress, setLoanAddress] = useState("");
-  const [listingAddress, setListingAddress] = useState("");
-  const [lenderAddress, setLenderAddress] = useState("");
-  const [nftMint, setNftMint] = useState("");
+  const [activeLoans, setActiveLoans] = useState<any[]>([]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const provider = new AnchorProvider(
+    connection,
+    wallet as any,
+    AnchorProvider.defaultOptions()
+  );
+  const program = new Program<Sonic>(idl, provider as unknown as Provider);
+
+  // Fetch active loans when component mounts
+  useEffect(() => {
+    fetchActiveLoans();
+  }, [connection, program, wallet.publicKey]);
+
+  const fetchActiveLoans = async () => {
+    if (!program || !wallet.publicKey) return;
+
     try {
-      const loanPubkey = new PublicKey(loanAddress);
-      const listingPubkey = new PublicKey(listingAddress);
-      const lenderPubkey = new PublicKey(lenderAddress);
-      const nftMintPubkey = new PublicKey(nftMint);
-      await handleRepay(loanPubkey, listingPubkey, lenderPubkey, nftMintPubkey);
+      // Get all Loan accounts for the connected wallet
+      const loans = await program.account.loan.all([
+        {
+          memcmp: {
+            offset: 8, // discriminator
+            bytes: wallet.publicKey.toBase58(), // borrower
+          },
+        },
+        {
+          memcmp: {
+            offset:
+              8 + // discriminator
+              32 + // borrower
+              32 + // listing
+              8 + // start_time
+              8 + // end_time
+              8 + // collateral_amount
+              8, // interest_rate
+            bytes: bs58.encode(Buffer.from([1])), // is_active = true
+          },
+        },
+      ]);
+
+      // Fetch listing details for each loan
+      const enrichedLoans = await Promise.all(
+        loans.map(async (loan) => {
+          try {
+            const listing = await program.account.nftListing.fetch(
+              loan.account.listing
+            );
+            return {
+              ...loan,
+              listing,
+            };
+          } catch (error) {
+            console.error("Error fetching listing:", error);
+            return loan;
+          }
+        })
+      );
+
+      setActiveLoans(enrichedLoans);
     } catch (error) {
-      console.error("Invalid public key:", error);
+      console.error("Error fetching loans:", error);
+      toast.error("Failed to fetch active loans");
     }
   };
 
-  const handleRepay = async (
-    loanAddress: PublicKey,
-    listingAddress: PublicKey,
-    lenderAddress: PublicKey,
-    nftMint: PublicKey
-  ) => {
+  const formatTimeLeft = (endTime: number) => {
+    const now = Math.floor(Date.now() / 1000);
+    const timeLeft = endTime - now;
+
+    if (timeLeft <= 0) return "Expired";
+
+    const days = Math.floor(timeLeft / (24 * 60 * 60));
+    const hours = Math.floor((timeLeft % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((timeLeft % (60 * 60)) / 60);
+
+    if (days > 0) return `${days}d ${hours}h left`;
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
+  };
+
+  const handleRepay = async (loan: any) => {
     if (!wallet.publicKey) {
       toast.error("Please connect your wallet");
       return;
@@ -696,41 +754,33 @@ const RepayLoan: FC = () => {
     setLoading(true);
 
     try {
-      const provider = new AnchorProvider(
-        connection,
-        wallet as any,
-        AnchorProvider.defaultOptions()
-      );
-      setProvider(provider);
-      const program = new Program<Sonic>(idl, provider as unknown as Provider);
-
       const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
         program.programId
       );
 
       const borrowerNftAccount = await getAssociatedTokenAddress(
-        nftMint,
+        loan.listing.nftMint,
         wallet.publicKey
       );
       const vaultNftAccount = await getAssociatedTokenAddress(
-        nftMint,
+        loan.listing.nftMint,
         vault_authority,
         true
       );
       const lenderNftAccount = await getAssociatedTokenAddress(
-        nftMint,
-        lenderAddress
+        loan.listing.nftMint,
+        loan.listing.lender
       );
 
       await program.methods
         .repayLoan()
         .accounts({
           borrower: wallet.publicKey,
-          lender: lenderAddress,
-          loan: loanAddress,
-          listing: listingAddress,
-          nftMint,
+          lender: loan.listing.lender,
+          loan: loan.publicKey,
+          listing: loan.account.listing,
+          nftMint: loan.listing.nftMint,
           borrowerNftAccount,
           vaultNftAccount,
           lenderNftAccount,
@@ -742,6 +792,8 @@ const RepayLoan: FC = () => {
         .rpc();
 
       toast.success("Successfully repaid loan!", { id: toastId });
+      // Refresh loans after successful repayment
+      fetchActiveLoans();
     } catch (error) {
       console.error("Error repaying loan:", error);
       toast.error(`Failed to repay loan: ${error.message}`, { id: toastId });
@@ -751,51 +803,61 @@ const RepayLoan: FC = () => {
   };
 
   return (
-    <div className="p-4 border rounded text-white">
-      <h2 className="text-xl mb-4">Repay Loan</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Loan Address"
-          value={loanAddress}
-          onChange={(e) => setLoanAddress(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
-        <input
-          type="text"
-          placeholder="Listing Address"
-          value={listingAddress}
-          onChange={(e) => setListingAddress(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
-        <input
-          type="text"
-          placeholder="Lender Address"
-          value={lenderAddress}
-          onChange={(e) => setLenderAddress(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
-        <input
-          type="text"
-          placeholder="NFT Mint Address"
-          value={nftMint}
-          onChange={(e) => setNftMint(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
-        <button
-          type="submit"
-          disabled={
-            loading ||
-            !loanAddress ||
-            !listingAddress ||
-            !lenderAddress ||
-            !nftMint
-          }
-          className="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-        >
-          {loading ? "Processing..." : "Repay Loan"}
-        </button>
-      </form>
+    <div className="p-4 border rounded">
+      <h2 className="text-xl mb-4">Your Active Loans</h2>
+      <div className="space-y-4">
+        {activeLoans.map((loan, index) => (
+          <div key={index} className="p-4 border rounded bg-gray-800">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-sm text-gray-400">NFT</p>
+                <p className="font-mono text-sm">
+                  {loan.listing.nftMint.toString().slice(0, 16)}...
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Time Remaining</p>
+                <p className="font-bold text-yellow-400">
+                  {formatTimeLeft(loan.account.endTime)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-400">Collateral</p>
+                <p className="font-bold text-green-400">
+                  {(loan.account.collateralAmount / 1e9).toFixed(2)} SOL
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Interest Rate</p>
+                <p>{loan.account.interestRate.toString()}%</p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-400">Lender</p>
+              <p className="font-mono text-sm">
+                {loan.listing.lender.toString().slice(0, 16)}...
+              </p>
+            </div>
+
+            <button
+              onClick={() => handleRepay(loan)}
+              disabled={loading}
+              className="w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            >
+              {loading ? "Processing..." : "Repay Loan"}
+            </button>
+          </div>
+        ))}
+        {activeLoans.length === 0 && (
+          <p className="text-gray-400 text-center py-8">
+            You have no active loans
+          </p>
+        )}
+      </div>
     </div>
   );
 };
