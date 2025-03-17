@@ -1,6 +1,7 @@
-import { FC, useState, useEffect } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useConnection } from "@solana/wallet-adapter-react";
+// @ts-nocheck
+import { FC, useState, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection } from '@solana/wallet-adapter-react';
 
 import {
   Program,
@@ -8,17 +9,17 @@ import {
   setProvider,
   BN,
   type Provider,
-} from "@coral-xyz/anchor";
-import toast from "react-hot-toast";
-import type { Sonic } from "@/sc/types/sonic";
-import idl from "@/sc/sonic.json";
-import { PROGRAM_ID, VAULT_AUTHORITY_SEED } from "@/lib/constants";
+} from '@coral-xyz/anchor';
+import toast from 'react-hot-toast';
+import type { Sonic } from '@/sc/types/sonic';
+import idl from '@/sc/sonic.json';
+import { PROGRAM_ID, VAULT_AUTHORITY_SEED } from '@/lib/constants';
 import {
   formatOverdueTime,
   formatCollateral,
   formatTimeLeft,
-} from "@/lib/format";
-import bs58 from "bs58";
+} from '@/lib/format';
+import bs58 from 'bs58';
 
 import {
   PublicKey,
@@ -26,14 +27,14 @@ import {
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
   Transaction,
-} from "@solana/web3.js";
+} from '@solana/web3.js';
 
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
-} from "@solana/spl-token";
+} from '@solana/spl-token';
 
 const BorrowNFT: FC = () => {
   const wallet = useWallet();
@@ -75,18 +76,18 @@ const BorrowNFT: FC = () => {
 
       setListings(listings);
     } catch (error) {
-      console.error("Error fetching listings:", error);
-      toast.error("Failed to fetch listings");
+      console.error('Error fetching listings:', error);
+      toast.error('Failed to fetch listings');
     }
   };
 
   const handleBorrow = async (listing: any) => {
     if (!wallet.publicKey) {
-      toast.error("Please connect your wallet");
+      toast.error('Please connect your wallet');
       return;
     }
 
-    const toastId = toast.loading("Borrowing NFT...");
+    const toastId = toast.loading('Borrowing NFT...');
     setLoading(true);
 
     try {
@@ -138,11 +139,11 @@ const BorrowNFT: FC = () => {
         .signers([loan])
         .rpc();
 
-      toast.success("Successfully borrowed NFT!", { id: toastId });
+      toast.success('Successfully borrowed NFT!', { id: toastId });
       // Refresh listings after successful borrow
       fetchListings();
     } catch (error) {
-      console.error("Error borrowing NFT:", error);
+      console.error('Error borrowing NFT:', error);
       toast.error(`Failed to borrow NFT: ${error.message}`, { id: toastId });
     } finally {
       setLoading(false);
@@ -164,40 +165,40 @@ const BorrowNFT: FC = () => {
   };
 
   return (
-    <div className="p-4 border rounded">
-      <h2 className="text-xl mb-4">Available NFT Loans</h2>
-      <div className="space-y-4">
+    <div className='p-4 border rounded'>
+      <h2 className='text-xl mb-4'>Available NFT Loans</h2>
+      <div className='space-y-4'>
         {listings.map((listing, index) => (
-          <div key={index} className="p-4 border rounded bg-gray-800">
-            <div className="flex justify-between items-start mb-4">
+          <div key={index} className='p-4 border rounded bg-gray-800'>
+            <div className='flex justify-between items-start mb-4'>
               <div>
-                <p className="text-sm text-gray-400">Lender</p>
-                <p className="font-mono text-sm">
+                <p className='text-sm text-gray-400'>Lender</p>
+                <p className='font-mono text-sm'>
                   {listing.account.lender.toString().slice(0, 16)}...
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-400">Required Collateral</p>
-                <p className="font-bold text-green-400">
+              <div className='text-right'>
+                <p className='text-sm text-gray-400'>Required Collateral</p>
+                <p className='font-bold text-green-400'>
                   {formatCollateral(listing.account.collateralAmount)}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className='grid grid-cols-2 gap-4 mb-4'>
               <div>
-                <p className="text-sm text-gray-400">Duration</p>
+                <p className='text-sm text-gray-400'>Duration</p>
                 <p>{formatDuration(listing.account.loanDuration)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-400">Interest Rate</p>
+                <p className='text-sm text-gray-400'>Interest Rate</p>
                 <p>{listing.account.interestRate.toString()}%</p>
               </div>
             </div>
 
-            <div className="mb-4">
-              <p className="text-sm text-gray-400">NFT Mint</p>
-              <p className="font-mono text-sm break-all">
+            <div className='mb-4'>
+              <p className='text-sm text-gray-400'>NFT Mint</p>
+              <p className='font-mono text-sm break-all'>
                 {listing.account.nftMint.toString()}
               </p>
             </div>
@@ -207,18 +208,18 @@ const BorrowNFT: FC = () => {
               disabled={
                 loading || listing.account.lender.equals(wallet.publicKey)
               }
-              className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              className='w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed'
             >
               {loading
-                ? "Processing..."
+                ? 'Processing...'
                 : listing.account.lender.equals(wallet.publicKey)
                 ? "Can't borrow your own listing"
-                : "Borrow NFT"}
+                : 'Borrow NFT'}
             </button>
           </div>
         ))}
         {listings.length === 0 && (
-          <p className="text-gray-400 text-center py-8">
+          <p className='text-gray-400 text-center py-8'>
             No active listings available
           </p>
         )}

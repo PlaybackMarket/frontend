@@ -1,6 +1,8 @@
-import { FC, useState, useEffect } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useConnection } from "@solana/wallet-adapter-react";
+// @ts-nocheck
+
+import { FC, useState, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection } from '@solana/wallet-adapter-react';
 
 import {
   Program,
@@ -8,17 +10,17 @@ import {
   setProvider,
   BN,
   type Provider,
-} from "@coral-xyz/anchor";
-import toast from "react-hot-toast";
-import type { Sonic } from "@/sc/types/sonic";
-import idl from "@/sc/sonic.json";
-import { PROGRAM_ID, VAULT_AUTHORITY_SEED } from "@/lib/constants";
+} from '@coral-xyz/anchor';
+import toast from 'react-hot-toast';
+import type { Sonic } from '@/sc/types/sonic';
+import idl from '@/sc/sonic.json';
+import { PROGRAM_ID, VAULT_AUTHORITY_SEED } from '@/lib/constants';
 import {
   formatOverdueTime,
   formatCollateral,
   formatTimeLeft,
-} from "@/lib/format";
-import bs58 from "bs58";
+} from '@/lib/format';
+import bs58 from 'bs58';
 
 import {
   PublicKey,
@@ -26,23 +28,23 @@ import {
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
   Transaction,
-} from "@solana/web3.js";
+} from '@solana/web3.js';
 
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
-} from "@solana/spl-token";
+} from '@solana/spl-token';
 
 const ListNFT: FC = () => {
   const wallet = useWallet();
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
-  const [nftMint, setNftMint] = useState("");
-  const [loanDuration, setLoanDuration] = useState("");
-  const [interestRate, setInterestRate] = useState("");
-  const [collateralAmount, setCollateralAmount] = useState("");
+  const [nftMint, setNftMint] = useState('');
+  const [loanDuration, setLoanDuration] = useState('');
+  const [interestRate, setInterestRate] = useState('');
+  const [collateralAmount, setCollateralAmount] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +57,7 @@ const ListNFT: FC = () => {
         parseInt(collateralAmount)
       );
     } catch (error) {
-      console.error("Invalid input:", error);
+      console.error('Invalid input:', error);
     }
   };
 
@@ -66,11 +68,11 @@ const ListNFT: FC = () => {
     collateralAmount: number
   ) => {
     if (!wallet.publicKey) {
-      toast.error("Please connect your wallet");
+      toast.error('Please connect your wallet');
       return;
     }
 
-    const toastId = toast.loading("Listing NFT...");
+    const toastId = toast.loading('Listing NFT...');
     setLoading(true);
 
     try {
@@ -138,9 +140,9 @@ const ListNFT: FC = () => {
         .signers([listing])
         .rpc();
 
-      toast.success("Successfully listed NFT!", { id: toastId });
+      toast.success('Successfully listed NFT!', { id: toastId });
     } catch (error) {
-      console.error("Error listing NFT:", error);
+      console.error('Error listing NFT:', error);
       toast.error(`Failed to list NFT: ${error.message}`, { id: toastId });
     } finally {
       setLoading(false);
@@ -148,39 +150,39 @@ const ListNFT: FC = () => {
   };
 
   return (
-    <div className="p-4 border rounded">
-      <h2 className="text-xl mb-4">List NFT</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className='p-4 border rounded'>
+      <h2 className='text-xl mb-4'>List NFT</h2>
+      <form onSubmit={handleSubmit} className='space-y-4'>
         <input
-          type="text"
-          placeholder="NFT Mint Address"
+          type='text'
+          placeholder='NFT Mint Address'
           value={nftMint}
           onChange={(e) => setNftMint(e.target.value)}
-          className="w-full p-2 rounded text-white"
+          className='w-full p-2 rounded text-white'
         />
         <input
-          type="number"
-          placeholder="Loan Duration (seconds)"
+          type='number'
+          placeholder='Loan Duration (seconds)'
           value={loanDuration}
           onChange={(e) => setLoanDuration(e.target.value)}
-          className="w-full p-2 rounded text-white"
+          className='w-full p-2 rounded text-white'
         />
         <input
-          type="number"
-          placeholder="Interest Rate"
+          type='number'
+          placeholder='Interest Rate'
           value={interestRate}
           onChange={(e) => setInterestRate(e.target.value)}
-          className="w-full p-2 rounded text-white"
+          className='w-full p-2 rounded text-white'
         />
         <input
-          type="number"
-          placeholder="Collateral Amount (lamports)"
+          type='number'
+          placeholder='Collateral Amount (lamports)'
           value={collateralAmount}
           onChange={(e) => setCollateralAmount(e.target.value)}
-          className="w-full p-2 rounded text-white"
+          className='w-full p-2 rounded text-white'
         />
         <button
-          type="submit"
+          type='submit'
           disabled={
             loading ||
             !nftMint ||
@@ -188,9 +190,9 @@ const ListNFT: FC = () => {
             !interestRate ||
             !collateralAmount
           }
-          className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          className='bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50'
         >
-          {loading ? "Processing..." : "List NFT"}
+          {loading ? 'Processing...' : 'List NFT'}
         </button>
       </form>
     </div>

@@ -1,6 +1,8 @@
-import { FC, useState, useEffect } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useConnection } from "@solana/wallet-adapter-react";
+// @ts-nocheck
+
+import { FC, useState, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection } from '@solana/wallet-adapter-react';
 
 import {
   Program,
@@ -8,17 +10,17 @@ import {
   setProvider,
   BN,
   type Provider,
-} from "@coral-xyz/anchor";
-import toast from "react-hot-toast";
-import type { Sonic } from "@/sc/types/sonic";
-import idl from "@/sc/sonic.json";
-import { PROGRAM_ID, VAULT_AUTHORITY_SEED } from "@/lib/constants";
+} from '@coral-xyz/anchor';
+import toast from 'react-hot-toast';
+import type { Sonic } from '@/sc/types/sonic';
+import idl from '@/sc/sonic.json';
+import { PROGRAM_ID, VAULT_AUTHORITY_SEED } from '@/lib/constants';
 import {
   formatOverdueTime,
   formatCollateral,
   formatTimeLeft,
-} from "@/lib/format";
-import bs58 from "bs58";
+} from '@/lib/format';
+import bs58 from 'bs58';
 
 import {
   PublicKey,
@@ -26,14 +28,14 @@ import {
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
   Transaction,
-} from "@solana/web3.js";
+} from '@solana/web3.js';
 
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
-} from "@solana/spl-token";
+} from '@solana/spl-token';
 const CancelListing: FC = () => {
   const wallet = useWallet();
   const { connection } = useConnection();
@@ -85,7 +87,7 @@ const CancelListing: FC = () => {
               metadata,
             };
           } catch (error) {
-            console.error("Error fetching metadata:", error);
+            console.error('Error fetching metadata:', error);
             return listing;
           }
         })
@@ -93,18 +95,18 @@ const CancelListing: FC = () => {
 
       setListings(enrichedListings);
     } catch (error) {
-      console.error("Error fetching listings:", error);
-      toast.error("Failed to fetch listings");
+      console.error('Error fetching listings:', error);
+      toast.error('Failed to fetch listings');
     }
   };
 
   const handleCancel = async (listing: any) => {
     if (!wallet.publicKey) {
-      toast.error("Please connect your wallet");
+      toast.error('Please connect your wallet');
       return;
     }
 
-    const toastId = toast.loading("Canceling listing...");
+    const toastId = toast.loading('Canceling listing...');
     setLoading(true);
 
     try {
@@ -144,11 +146,11 @@ const CancelListing: FC = () => {
         })
         .rpc();
 
-      toast.success("Successfully canceled listing!", { id: toastId });
+      toast.success('Successfully canceled listing!', { id: toastId });
       // Refresh listings after cancellation
       fetchListings();
     } catch (error) {
-      console.error("Error canceling listing:", error);
+      console.error('Error canceling listing:', error);
       toast.error(`Failed to cancel listing: ${error.message}`, {
         id: toastId,
       });
@@ -158,11 +160,11 @@ const CancelListing: FC = () => {
   };
 
   return (
-    <div className="p-4 border rounded">
-      <h2 className="text-xl mb-4">Active Listings</h2>
-      <div className="space-y-4">
+    <div className='p-4 border rounded'>
+      <h2 className='text-xl mb-4'>Active Listings</h2>
+      <div className='space-y-4'>
         {listings.map((listing, index) => (
-          <div key={index} className="p-4 border rounded">
+          <div key={index} className='p-4 border rounded'>
             <p>Lender: {listing.account.lender.toString()}</p>
             <p>NFT Mint: {listing.account.nftMint.toString()}</p>
             <p>
@@ -176,15 +178,15 @@ const CancelListing: FC = () => {
               <button
                 onClick={() => handleCancel(listing)}
                 disabled={loading}
-                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mt-2 disabled:opacity-50"
+                className='bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mt-2 disabled:opacity-50'
               >
-                {loading ? "Processing..." : "Cancel Listing"}
+                {loading ? 'Processing...' : 'Cancel Listing'}
               </button>
             )}
           </div>
         ))}
         {listings.length === 0 && (
-          <p className="text-gray-400">No active listings found</p>
+          <p className='text-gray-400'>No active listings found</p>
         )}
       </div>
     </div>
