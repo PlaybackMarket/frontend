@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, useState } from "react";
+import { FC, useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
   PublicKey,
@@ -30,6 +30,7 @@ import idl from "@/sc/sonic.json";
 
 import type { Sonic } from "@/sc/types/sonic";
 import { Transaction } from "@solana/web3.js";
+import bs58 from "bs58";
 
 // Import your IDL and set up program ID
 const PROGRAM_ID = new PublicKey(
@@ -152,24 +153,67 @@ const CancelListing: FC = () => {
   const wallet = useWallet();
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
-  const [listingAddress, setListingAddress] = useState("");
-  const [nftMint, setNftMint] = useState("");
+  const [listings, setListings] = useState<any[]>([]);
+  const [selectedListing, setSelectedListing] = useState<any>(null);
+  const provider = new AnchorProvider(
+    connection,
+    wallet as any,
+    AnchorProvider.defaultOptions()
+  );
+  const program = new Program<Sonic>(idl, provider as unknown as Provider);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Fetch active listings when component mounts
+  useEffect(() => {
+    fetchListings();
+  }, [connection, program]);
+
+  const fetchListings = async () => {
+    if (!program) return;
+
     try {
-      const listingPubkey = new PublicKey(listingAddress);
-      const nftMintPubkey = new PublicKey(nftMint);
-      await handleCancel(listingPubkey, nftMintPubkey);
+      // Get all NFTListing accounts
+      const listings = await program.account.nftListing.all([
+        {
+          memcmp: {
+            offset:
+              8 + // discriminator
+              32 + // lender pubkey
+              32 + // nft_mint
+              8 + // loan_duration
+              8 + // interest_rate
+              8, // collateral_amount
+            bytes: bs58.encode(Buffer.from([1])), // is_active = true
+          },
+        },
+      ]);
+
+      // Fetch additional NFT metadata for each listing
+      const enrichedListings = await Promise.all(
+        listings.map(async (listing) => {
+          try {
+            const metadata = await connection.getTokenAccountsByOwner(
+              listing.account.lender,
+              { mint: listing.account.nftMint }
+            );
+            return {
+              ...listing,
+              metadata,
+            };
+          } catch (error) {
+            console.error("Error fetching metadata:", error);
+            return listing;
+          }
+        })
+      );
+
+      setListings(enrichedListings);
     } catch (error) {
-      console.error("Invalid public key:", error);
+      console.error("Error fetching listings:", error);
+      toast.error("Failed to fetch listings");
     }
   };
 
-  const handleCancel = async (
-    listingAddress: PublicKey,
-    nftMint: PublicKey
-  ) => {
+  const handleCancel = async (listing: any) => {
     if (!wallet.publicKey) {
       toast.error("Please connect your wallet");
       return;
@@ -193,11 +237,11 @@ const CancelListing: FC = () => {
       );
 
       const lenderNftAccount = await getAssociatedTokenAddress(
-        nftMint,
+        listing.account.nftMint,
         wallet.publicKey
       );
       const vaultNftAccount = await getAssociatedTokenAddress(
-        nftMint,
+        listing.account.nftMint,
         vault_authority,
         true
       );
@@ -206,8 +250,8 @@ const CancelListing: FC = () => {
         .cancelListing()
         .accounts({
           lender: wallet.publicKey,
-          listing: listingAddress,
-          nftMint,
+          listing: listing.publicKey,
+          nftMint: listing.account.nftMint,
           vaultNftAccount,
           lenderNftAccount,
           vault_authority: vault_authority,
@@ -216,6 +260,8 @@ const CancelListing: FC = () => {
         .rpc();
 
       toast.success("Successfully canceled listing!", { id: toastId });
+      // Refresh listings after cancellation
+      fetchListings();
     } catch (error) {
       console.error("Error canceling listing:", error);
       toast.error(`Failed to cancel listing: ${error.message}`, {
@@ -228,30 +274,34 @@ const CancelListing: FC = () => {
 
   return (
     <div className="p-4 border rounded">
-      <h2 className="text-xl mb-4">Cancel Listing</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Listing Address"
-          value={listingAddress}
-          onChange={(e) => setListingAddress(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
-        <input
-          type="text"
-          placeholder="NFT Mint Address"
-          value={nftMint}
-          onChange={(e) => setNftMint(e.target.value)}
-          className="w-full p-2 rounded text-white mb-2"
-        />
-        <button
-          type="submit"
-          disabled={loading || !listingAddress || !nftMint}
-          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-        >
-          {loading ? "Processing..." : "Cancel Listing"}
-        </button>
-      </form>
+      <h2 className="text-xl mb-4">Active Listings</h2>
+      <div className="space-y-4">
+        {listings.map((listing, index) => (
+          <div key={index} className="p-4 border rounded">
+            <p>Lender: {listing.account.lender.toString()}</p>
+            <p>NFT Mint: {listing.account.nftMint.toString()}</p>
+            <p>
+              Loan Duration: {listing.account.loanDuration.toString()} seconds
+            </p>
+            <p>Interest Rate: {listing.account.interestRate.toString()}%</p>
+            <p>
+              Collateral: {listing.account.collateralAmount.toString()} lamports
+            </p>
+            {listing.account.lender.equals(wallet.publicKey) && (
+              <button
+                onClick={() => handleCancel(listing)}
+                disabled={loading}
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mt-2 disabled:opacity-50"
+              >
+                {loading ? "Processing..." : "Cancel Listing"}
+              </button>
+            )}
+          </div>
+        ))}
+        {listings.length === 0 && (
+          <p className="text-gray-400">No active listings found</p>
+        )}
+      </div>
     </div>
   );
 };
