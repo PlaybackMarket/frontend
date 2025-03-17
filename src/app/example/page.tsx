@@ -2,6 +2,12 @@
 
 import { FC, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import {
+  PublicKey,
+  Keypair,
+  SystemProgram,
+  SYSVAR_RENT_PUBKEY,
+} from "@solana/web3.js";
 
 import {
   Program,
@@ -16,13 +22,14 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
-import { PublicKey } from "@solana/web3.js";
 import toast from "react-hot-toast";
 import { useConnection } from "@solana/wallet-adapter-react";
 import idl from "@/sc/sonic.json";
 
 import type { Sonic } from "@/sc/types/sonic";
+import { Transaction } from "@solana/web3.js";
 
 // Import your IDL and set up program ID
 const PROGRAM_ID = new PublicKey(
@@ -66,14 +73,15 @@ const BorrowNFT: FC = () => {
         wallet as any,
         AnchorProvider.defaultOptions()
       );
-      const program = new Program<Sonic>(idl, {} as Provider);
+      setProvider(provider);
+      const program = new Program<Sonic>(idl, provider as unknown as Provider);
 
       const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
         program.programId
       );
 
-      const loan = web3.Keypair.generate();
+      const loan = Keypair.generate();
       const borrowerNftAccount = await getAssociatedTokenAddress(
         nftMint,
         wallet.publicKey
@@ -94,8 +102,8 @@ const BorrowNFT: FC = () => {
           vaultNftAccount,
           vault_authority: vault_authority,
           tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: web3.SystemProgram.programId,
-          rent: web3.SYSVAR_RENT_PUBKEY,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
           nftMint,
         })
         .signers([loan])
@@ -176,7 +184,8 @@ const CancelListing: FC = () => {
         wallet as any,
         AnchorProvider.defaultOptions()
       );
-      const program = new Program<Sonic>(idl, {} as Provider);
+      setProvider(provider);
+      const program = new Program<Sonic>(idl, provider as unknown as Provider);
 
       const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
@@ -291,7 +300,8 @@ const ListNFT: FC = () => {
         wallet as any,
         AnchorProvider.defaultOptions()
       );
-      const program = new Program<Sonic>(idl, provider as Provider);
+      setProvider(provider);
+      const program = new Program<Sonic>(idl, provider as unknown as Provider);
 
       const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
@@ -308,6 +318,26 @@ const ListNFT: FC = () => {
         true
       );
 
+      // Create a new keypair for the listing account
+      const listing = Keypair.generate();
+
+      // Create the vault_nft_account if it doesn't exist
+      const vaultNftAccountInfo = await connection.getAccountInfo(
+        vaultNftAccount
+      );
+      if (!vaultNftAccountInfo) {
+        const createAtaIx = createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          vaultNftAccount,
+          vault_authority,
+          nftMint,
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        );
+        const tx = new Transaction().add(createAtaIx);
+        await provider.sendAndConfirm(tx);
+      }
+
       await program.methods
         .listNft(
           new BN(loanDuration),
@@ -316,11 +346,17 @@ const ListNFT: FC = () => {
         )
         .accounts({
           lender: wallet.publicKey,
-          listing: wallet.publicKey,
+          listing: listing.publicKey,
           nftMint,
           lenderNftAccount,
           vaultNftAccount,
+          vaultAuthority: vault_authority,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
         })
+        .signers([listing])
         .rpc();
 
       toast.success("Successfully listed NFT!", { id: toastId });
@@ -421,7 +457,8 @@ const LiquidateLoan: FC = () => {
         wallet as any,
         AnchorProvider.defaultOptions()
       );
-      const program = new Program<Sonic>(idl, {} as Provider);
+      setProvider(provider);
+      const program = new Program<Sonic>(idl, provider as unknown as Provider);
 
       const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
@@ -437,7 +474,7 @@ const LiquidateLoan: FC = () => {
           listing: listingAddress,
 
           vault_authority: vault_authority,
-          systemProgram: web3.SystemProgram.programId,
+          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -533,7 +570,8 @@ const RepayLoan: FC = () => {
         wallet as any,
         AnchorProvider.defaultOptions()
       );
-      const program = new Program<Sonic>(idl, {} as Provider);
+      setProvider(provider);
+      const program = new Program<Sonic>(idl, provider as unknown as Provider);
 
       const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
@@ -568,7 +606,7 @@ const RepayLoan: FC = () => {
           vault_authority: vault_authority,
           tokenProgram: TOKEN_PROGRAM_ID,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: web3.SystemProgram.programId,
+          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
