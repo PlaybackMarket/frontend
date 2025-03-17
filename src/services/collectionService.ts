@@ -10,6 +10,7 @@ export interface Collection {
   name: string;
   symbol: string;
   image?: string;
+  logo?: string;
   description?: string;
   floorPrice: number;
   lendingAPY: number;
@@ -121,6 +122,7 @@ export async function fetchAllCollections(isMainnet: boolean = true): Promise<Co
             id: mintAddress,
             name: metadata.onChain.name || 'Unknown Collection',
             symbol: metadata.onChain.symbol || '',
+            logo: metadata.offChain?.image,
             image: metadata.offChain?.image,
             description: metadata.offChain?.description,
             ...lendingStats,

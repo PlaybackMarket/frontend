@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.0",
+    "@headlessui/react": "^2.2.0",
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@metaplex-foundation/umi": "^1.1.1",
     "@metaplex-foundation/umi-bundle-defaults": "^1.1.1",
