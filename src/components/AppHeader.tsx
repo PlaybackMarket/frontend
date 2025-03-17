@@ -16,23 +16,29 @@ export function AppHeader() {
       <div className='flex items-center'>
         <Link href='/borrow' className='flex items-center mr-8'>
           <Image
-            src='/playback-logo.svg'
+            src='/playback-logo.png'
             alt='Playback Logo'
             width={32}
             height={32}
             className='mr-2'
           />
-          <h1 className='text-xl font-bold text-white tracking-tight font-jost'>PLAYBACK</h1>
+          <h1 className='text-xl font-bold text-white tracking-tight font-jost'>
+            PLAYBACK
+          </h1>
         </Link>
-        
+
         <nav className='flex space-x-6 pt-1'>
           {/* Borrowing Button */}
-          <div className="inline-flex flex-col justify-start items-start gap-2 w-[141px]">
+          <div className='inline-flex flex-col justify-start items-start gap-2 w-[141px]'>
             <Link
               href='/borrow'
-              className="self-stretch inline-flex justify-start items-center gap-3"
+              className='self-stretch inline-flex justify-start items-center gap-3'
             >
-              <div className={`w-[29px] h-[29px] relative ${isActive('/borrow') ? 'bg-[#16337c]' : 'bg-transparent'} rounded-lg flex items-center justify-center`}>
+              <div
+                className={`w-[29px] h-[29px] relative ${
+                  isActive('/borrow') ? 'bg-[#16337c]' : 'bg-transparent'
+                } rounded-lg flex items-center justify-center`}
+              >
                 <Image
                   src='/borrow.svg'
                   alt='Borrowing'
@@ -41,22 +47,30 @@ export function AppHeader() {
                   className='text-[#dddddd]'
                 />
               </div>
-              <div className={`justify-center ${isActive('/borrow') ? 'text-white' : 'text-gray-400'} text-base font-medium font-jost uppercase leading-normal`}>
+              <div
+                className={`justify-center ${
+                  isActive('/borrow') ? 'text-white' : 'text-gray-400'
+                } text-base font-medium font-jost uppercase leading-normal`}
+              >
                 borrowing
               </div>
             </Link>
             {isActive('/borrow') && (
-              <div className="w-[141px] h-0 outline-1 outline-offset-[-0.50px] outline-[#5c88e1]" />
+              <div className='w-[141px] h-0 outline-1 outline-offset-[-0.50px] outline-[#5c88e1]' />
             )}
           </div>
-          
+
           {/* Lending Button */}
-          <div className="inline-flex flex-col justify-start items-start gap-2 w-[141px]">
+          <div className='inline-flex flex-col justify-start items-start gap-2 w-[141px]'>
             <Link
               href='/lending'
-              className="self-stretch inline-flex justify-start items-center gap-3"
+              className='self-stretch inline-flex justify-start items-center gap-3'
             >
-              <div className={`w-[29px] h-[29px] relative ${isActive('/lending') ? 'bg-[#16337c]' : 'bg-transparent'} rounded-lg flex items-center justify-center`}>
+              <div
+                className={`w-[29px] h-[29px] relative ${
+                  isActive('/lending') ? 'bg-[#16337c]' : 'bg-transparent'
+                } rounded-lg flex items-center justify-center`}
+              >
                 <Image
                   src='/lend.svg'
                   alt='Lending'
@@ -65,12 +79,16 @@ export function AppHeader() {
                   className='text-[#dddddd]'
                 />
               </div>
-              <div className={`justify-center ${isActive('/lending') ? 'text-white' : 'text-gray-400'} text-base font-medium font-jost uppercase leading-normal`}>
+              <div
+                className={`justify-center ${
+                  isActive('/lending') ? 'text-white' : 'text-gray-400'
+                } text-base font-medium font-jost uppercase leading-normal`}
+              >
                 lending
               </div>
             </Link>
             {isActive('/lending') && (
-              <div className="w-[141px] h-0 outline-1 outline-offset-[-0.50px] outline-[#5c88e1]" />
+              <div className='w-[141px] h-0 outline-1 outline-offset-[-0.50px] outline-[#5c88e1]' />
             )}
           </div>
         </nav>
@@ -93,11 +111,10 @@ export function AppHeader() {
               placeholder='Search by name'
               className='bg-transparent border-none h-[48px] px-10 w-[455px] text-sm focus:outline-none z-10 relative text-white font-jost'
             />
-          
           </div>
         </div>
         <WalletButton />
       </div>
     </header>
   );
-} 
+}
