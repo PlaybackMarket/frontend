@@ -104,7 +104,7 @@ export const listNFT = async (
         )
       );
     }
-
+    const listing = Keypair.generate();
     // Add instruction to list the NFT
     transaction.add(
       await program.methods
@@ -115,15 +115,10 @@ export const listNFT = async (
         )
         .accounts({
           lender: wallet.publicKey,
-          listing: listingKeypair.publicKey,
-          nftMint: nftMint,
-          lenderNftAccount: lenderNftAccount,
-          vaultNftAccount: vaultNftAccount,
-          vaultAuthority: vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
+          listing: listing.publicKey,
+          nftMint,
+          lenderNftAccount,
+          vaultNftAccount,
         })
         .signers([listingKeypair])
         .instruction()
@@ -160,7 +155,7 @@ export const cancelListing = async (
       wallet,
       AnchorProvider.defaultOptions()
     );
-    const program = new Program<Sonic>(idl as any, PROGRAM_ID, provider);
+    const program = new Program<Sonic>(idl as any, provider);
 
     const [vaultAuthority] = await getVaultAuthority();
     const lenderNftAccount = await getAssociatedTokenAddress(
@@ -183,8 +178,6 @@ export const cancelListing = async (
           nftMint: nftMint,
           vaultNftAccount: vaultNftAccount,
           lenderNftAccount: lenderNftAccount,
-          vaultAuthority: vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
         })
         .instruction()
     );
@@ -216,7 +209,7 @@ export const borrowNFT = async (
       wallet,
       AnchorProvider.defaultOptions()
     );
-    const program = new Program<Sonic>(idl as any, PROGRAM_ID, provider);
+    const program = new Program<Sonic>(idl as any, provider);
 
     const loanKeypair = Keypair.generate();
     const [vaultAuthority] = await getVaultAuthority();
@@ -266,10 +259,6 @@ export const borrowNFT = async (
           borrowerNftAccount: borrowerNftAccount,
           vaultNftAccount: vaultNftAccount,
           nftMint: nftMint,
-          vaultAuthority: vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
         })
         .signers([loanKeypair])
         .instruction()
@@ -294,7 +283,7 @@ export const borrowNFT = async (
 export const repayLoan = async (
   connection: Connection,
   wallet: any,
-  loan: PublicKey,
+  loan: any,
   listing: PublicKey,
   nftMint: PublicKey,
   lender: PublicKey
@@ -344,12 +333,13 @@ export const repayLoan = async (
         .repayLoan()
         .accounts({
           borrower: wallet.publicKey,
-          loan: loan,
-          listing: listing,
-          borrowerNftAccount: borrowerNftAccount,
-          vaultNftAccount: vaultNftAccount,
-          lenderNftAccount: lenderNftAccount,
-          nftMint: nftMint,
+          lender: loan.listing.lender,
+          loan: loan.publicKey,
+          listing: loan.account.listing,
+          nftMint: loan.listing.nftMint,
+          borrowerNftAccount,
+          vaultNftAccount,
+          lenderNftAccount,
         })
         .instruction()
     );
@@ -382,7 +372,7 @@ export const liquidateLoan = async (
       wallet,
       AnchorProvider.defaultOptions()
     );
-    const program = new Program<Sonic>(idl as any, PROGRAM_ID, provider);
+    const program = new Program<Sonic>(idl as any, provider);
 
     const [vaultAuthority] = await getVaultAuthority();
 

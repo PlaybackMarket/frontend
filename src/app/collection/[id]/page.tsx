@@ -14,9 +14,10 @@ import {
 } from "@/services/collectionService";
 import { useNetwork } from "@/contexts/NetworkContext";
 import { toast } from "react-hot-toast";
-import { Program } from "@coral-xyz/anchor";
+import { AnchorProvider, Program, type Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import idl from "@/sc/sonic.json";
+import { Sonic } from "@/sc/types/sonic";
 
 // Define interfaces for our data
 interface CollectionData extends Collection {
@@ -99,8 +100,15 @@ export default function CollectionDetailPage() {
       // Fetch NFTs in the collection
       const nfts = await fetchNFTsInCollection(collectionId, isMainnet);
       setItems(nfts);
+      const provider = new AnchorProvider(
+        connection,
+        wallet as any,
+        AnchorProvider.defaultOptions()
+      );
+      const program = new Program<Sonic>(idl, provider as unknown as Provider);
+
       // Fetch active lending listings from the blockchain
-      const activeOffers = await fetchActiveListings(connection);
+      const activeOffers = await fetchActiveListings(connection, program);
       setLendingOffers(activeOffers);
     } catch (error) {
       console.error("Error loading collection data:", error);
