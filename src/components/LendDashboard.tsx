@@ -20,7 +20,8 @@ import {
   AnchorProvider,
   setProvider,
   type Provider,
-} from '@coral-xyz/anchor';
+  Wallet,
+} from '@project-serum/anchor';
 
 import idl from '@/sc/sonic.json';
 import type { Sonic } from '@/sc/types/sonic';
@@ -32,21 +33,21 @@ import {
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { PROGRAM_ID } from '@/lib/constants';
-
-interface Loan {
-  listing: PublicKey;
-  nftMint: PublicKey;
-  collateralMint: PublicKey;
-  lender: PublicKey;
-}
+import { findVaultAuthorityPDA } from '../sc/pda';
+import { getOrCreateATA } from '../utils/ata';
+import { getLoanData, Loan } from '../utils/loan';
 
 interface NFTListing {
   lender: PublicKey;
-  nftMint: PublicKey;
+  nft_mint: PublicKey;
+  loan_duration: number;
+  interest_rate: number;
+  collateral_amount: number;
+  is_active: boolean;
 }
 
 export function LendDashboard() {
-  const { publicKey, sendTransaction } = useWallet();
+  const { publicKey, sendTransaction: walletSendTransaction } = useWallet();
   const { network } = useNetwork();
   const [balance, setBalance] = useState<number | null>(null);
   const [recipient, setRecipient] = useState('');
@@ -55,20 +56,60 @@ export function LendDashboard() {
   const [txHistory, setTxHistory] = useState<
     Array<{ hash: string; amount: string; date: Date }>
   >([]);
-  const [loanDuration, setLoanDuration] = useState('');
-  const [interestRate, setInterestRate] = useState('');
-  const [collateralAmount, setCollateralAmount] = useState('');
-  const [nftMint, setNftMint] = useState('');
+  const [loan_duration, setLoanDuration] = useState('');
+  const [interest_rate, setInterestRate] = useState('');
+  const [collateral_amount, setCollateralAmount] = useState('');
+  const [nft_mint, setNftMint] = useState('');
   const [selectedListing, setSelectedListing] = useState('');
   const [selectedLoan, setSelectedLoan] = useState('');
-  const [collateralMint, setCollateralMint] = useState('');
+  const [collateral_mint, setCollateralMint] = useState('');
+  const [listings, setListings] = useState<NFTListing[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
 
   const connection = new Connection(network.endpoint);
-
   const programID = PROGRAM_ID;
 
-  // const program = new Program(idl as Sonic);
-  const program = new Program<Sonic>(idl, {} as Provider);
+  const wallet = {
+    publicKey,
+    signTransaction: async (tx: Transaction) => {
+      return walletSendTransaction(tx, connection);
+    },
+    signAllTransactions: async (txs: Transaction[]) => {
+      return Promise.all(
+        txs.map((tx) => walletSendTransaction(tx, connection))
+      );
+    },
+    sendTransaction: walletSendTransaction,
+  } as unknown as Wallet;
+
+  const provider = new AnchorProvider(connection, wallet, {
+    commitment: 'confirmed',
+  });
+  setProvider(provider);
+
+  const program = new Program<Sonic>(
+    {
+      version: '0.1.0',
+      name: 'sonic',
+      instructions: idl.instructions.map((ix) => ({
+        ...ix,
+        accounts: ix.accounts.map((acc) => ({
+          ...acc,
+          isMut: acc.writable,
+          isSigner: acc.signer,
+        })),
+      })),
+      accounts: idl.accounts,
+      errors: idl.errors,
+    } as unknown as Sonic,
+    programID,
+    provider
+  );
+
+  // Create a wrapper for sendTransaction that matches the expected signature
+  const sendTransaction = async (transaction: Transaction) => {
+    return walletSendTransaction(transaction, connection);
+  };
 
   const fetchBalance = async () => {
     if (!publicKey) return;
@@ -110,7 +151,7 @@ export function LendDashboard() {
       );
 
       toast.loading('Waiting for signature...', { id: toastId });
-      const signature = await sendTransaction(transaction, connection);
+      const signature = await sendTransaction(transaction);
 
       toast.loading('Confirming transaction...', { id: toastId });
       await connection.confirmTransaction(signature, 'confirmed');
@@ -136,10 +177,10 @@ export function LendDashboard() {
   const handleListNFT = async () => {
     if (
       !publicKey ||
-      !nftMint ||
-      !loanDuration ||
-      !interestRate ||
-      !collateralAmount
+      !nft_mint ||
+      !loan_duration ||
+      !interest_rate ||
+      !collateral_amount
     ) {
       toast.error('Please fill in all fields');
       return;
@@ -147,167 +188,144 @@ export function LendDashboard() {
 
     const toastId = toast.loading('Listing NFT...');
     try {
+      const listingKeypair = Keypair.generate();
+      const [vault_authority] = await findVaultAuthorityPDA(programID);
+
+      const lender_nft_ata = await getOrCreateATA(
+        connection,
+        new PublicKey(nft_mint),
+        publicKey,
+        publicKey,
+        sendTransaction
+      );
+      const vault_nft_ata = await getOrCreateATA(
+        connection,
+        new PublicKey(nft_mint),
+        vault_authority,
+        publicKey,
+        sendTransaction
+      );
+
       await program.methods
-        .listNft(
-          new BN(loanDuration),
-          new BN(interestRate),
-          new BN(collateralAmount)
+        .list_nft(
+          new BN(loan_duration),
+          new BN(interest_rate),
+          new BN(collateral_amount)
         )
         .accounts({
           lender: publicKey,
-          nftMint: new PublicKey(nftMint),
-          // Add other required accounts...
+          listing: listingKeypair.publicKey,
+          nft_mint: new PublicKey(nft_mint),
+          lender_nft_account: lender_nft_ata,
+          vault_nft_account: vault_nft_ata,
+          vault_authority,
+          token_program: TOKEN_PROGRAM_ID,
+          associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+          system_program: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
         })
+        .signers([listingKeypair])
         .rpc();
 
       toast.success('NFT listed successfully!', { id: toastId });
-    } catch (e) {
-      console.error('Error listing NFT:', e);
-      toast.error('Failed to list NFT', { id: toastId });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error listing NFT:', errorMessage);
+      toast.error(`Failed to list NFT: ${errorMessage}`, { id: toastId });
     }
   };
 
-  const VAULT_AUTHORITY_SEED = Buffer.from('vault_authority');
-
-  async function findVaultAuthorityPDA(
-    programId: PublicKey
-  ): Promise<[PublicKey, number]> {
-    return PublicKey.findProgramAddress([VAULT_AUTHORITY_SEED], programId);
-  }
-
-  async function getOrCreateATA(
-    connection: Connection,
-    mint: PublicKey,
-    owner: PublicKey,
-    payer: PublicKey,
-    sendTransaction: (transaction: Transaction) => Promise<string>
-  ): Promise<PublicKey> {
+  const fetchListings = async () => {
     try {
-      const ata = await getAssociatedTokenAddress(mint, owner);
-
-      // Check if the ATA exists
-      const account = await connection.getAccountInfo(ata);
-      if (!account) {
-        const transaction = new Transaction().add(
-          createAssociatedTokenAccountInstruction(payer, ata, owner, mint)
-        );
-        await sendTransaction(transaction);
-        await connection.confirmTransaction(signature, 'confirmed');
-      }
-
-      return ata;
-    } catch (error) {
-      console.error('Error getting or creating ATA:', error);
-      throw error;
-    }
-  }
-
-  const getLoanData = async (
-    program: Program<Sonic>,
-    loanAddress: PublicKey
-  ): Promise<Loan> => {
-    try {
-      const loanAccount = await program.account.loan.fetch(loanAddress);
-      return loanAccount as unknown as Loan;
-    } catch (error) {
-      console.error('Error fetching loan data:', error);
-      throw error;
-    }
-  };
-
-  const getListingData = async (
-    program: Program<Sonic>,
-    listingAddress: PublicKey
-  ): Promise<NFTListing> => {
-    try {
-      const listingAccount = await program.account.nftListing.fetch(
-        listingAddress
+      const listings = await program.account.nft_listing.all();
+      setListings(
+        listings.map((listing) => ({
+          lender: listing.account.lender,
+          nft_mint: listing.account.nft_mint,
+          loan_duration: listing.account.loan_duration.toNumber(),
+          interest_rate: listing.account.interest_rate.toNumber(),
+          collateral_amount: listing.account.collateral_amount.toNumber(),
+          is_active: listing.account.is_active,
+        }))
       );
-      return listingAccount as unknown as NFTListing;
     } catch (error) {
-      console.error('Error fetching listing data:', error);
-      throw error;
+      console.error('Error fetching listings:', error);
+    }
+  };
+
+  const fetchLoans = async () => {
+    try {
+      const loans = await program.account.loan.all();
+      setLoans(
+        loans.map((loan) => ({
+          borrower: loan.account.borrower,
+          listing: loan.account.listing,
+          start_time: loan.account.start_time.toNumber(),
+          end_time: loan.account.end_time.toNumber(),
+          collateral_amount: loan.account.collateral_amount.toNumber(),
+          is_active: loan.account.is_active,
+          nft_mint: loan.account.nft_mint,
+          lender: loan.account.lender,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching loans:', error);
     }
   };
 
   const handleBorrowNFT = async () => {
-    if (!publicKey || !selectedListing || !collateralMint) {
+    if (!publicKey || !selectedListing || !nft_mint) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     const toastId = toast.loading('Borrowing NFT...');
     try {
-      // Create a new keypair for the loan account
       const loanKeypair = Keypair.generate();
 
       // Get the vault authority PDA
-      const [vaultAuthority] = await findVaultAuthorityPDA(programID);
+      const [vault_authority] = await findVaultAuthorityPDA(programID);
 
       // Get or create all necessary ATAs
-      const borrowerCollateralATA = await getOrCreateATA(
+      const borrower_nft_ata = await getOrCreateATA(
         connection,
-        new PublicKey(collateralMint),
+        new PublicKey(nft_mint),
         publicKey,
         publicKey,
         sendTransaction
       );
-
-      const vaultCollateralATA = await getOrCreateATA(
+      const vault_nft_ata = await getOrCreateATA(
         connection,
-        new PublicKey(collateralMint),
-        vaultAuthority,
-        publicKey,
-        sendTransaction
-      );
-
-      const nftMintPubkey = new PublicKey(nftMint);
-      const borrowerNftATA = await getOrCreateATA(
-        connection,
-        nftMintPubkey,
-        publicKey,
-        publicKey,
-        sendTransaction
-      );
-
-      const vaultNftATA = await getOrCreateATA(
-        connection,
-        nftMintPubkey,
-        vaultAuthority,
+        new PublicKey(nft_mint),
+        vault_authority,
         publicKey,
         sendTransaction
       );
 
       await program.methods
-        .borrowNft()
+        .borrow_nft()
         .accounts({
           borrower: publicKey,
           listing: new PublicKey(selectedListing),
           loan: loanKeypair.publicKey,
-          collateralMint: new PublicKey(collateralMint),
-          borrowerCollateralAccount: borrowerCollateralATA,
-          vaultCollateralAccount: vaultCollateralATA,
-          borrowerNftAccount: borrowerNftATA,
-          vaultNftAccount: vaultNftATA,
-          vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
+          borrower_nft_account: borrower_nft_ata,
+          vault_nft_account: vault_nft_ata,
+          vault_authority,
+          token_program: TOKEN_PROGRAM_ID,
+          system_program: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY,
-          nftMint: nftMintPubkey,
+          nft_mint: new PublicKey(nft_mint),
         })
         .signers([loanKeypair])
         .rpc();
 
       toast.success('NFT borrowed successfully!', { id: toastId });
-
-      // Clear the form
-      setSelectedListing('');
-      setCollateralMint('');
-      setNftMint('');
-    } catch (e) {
-      console.error('Error borrowing NFT:', e);
-      toast.error(`Failed to borrow NFT: ${e.message}`, { id: toastId });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error borrowing NFT:', errorMessage);
+      toast.error(`Failed to borrow NFT: ${errorMessage}`, { id: toastId });
     }
   };
 
@@ -323,81 +341,56 @@ export function LendDashboard() {
       const loanData = await getLoanData(program, loanPubkey);
 
       // Get the vault authority PDA
-      const [vaultAuthority] = await findVaultAuthorityPDA(programID);
+      const [vault_authority] = await findVaultAuthorityPDA(programID);
 
       // Get or create all necessary ATAs
-      const borrowerCollateralATA = await getOrCreateATA(
+      const borrower_nft_ata = await getOrCreateATA(
         connection,
-        loanData.collateralMint,
+        loanData.nft_mint,
         publicKey,
         publicKey,
         sendTransaction
       );
-
-      const vaultCollateralATA = await getOrCreateATA(
+      const vault_nft_ata = await getOrCreateATA(
         connection,
-        loanData.collateralMint,
-        vaultAuthority,
+        loanData.nft_mint,
+        vault_authority,
         publicKey,
         sendTransaction
       );
-
-      const lenderCollateralATA = await getOrCreateATA(
+      const lender_nft_ata = await getOrCreateATA(
         connection,
-        loanData.collateralMint,
-        loanData.lender,
-        publicKey,
-        sendTransaction
-      );
-
-      const borrowerNftATA = await getOrCreateATA(
-        connection,
-        loanData.nftMint,
-        publicKey,
-        publicKey,
-        sendTransaction
-      );
-
-      const vaultNftATA = await getOrCreateATA(
-        connection,
-        loanData.nftMint,
-        vaultAuthority,
-        publicKey,
-        sendTransaction
-      );
-
-      const lenderNftATA = await getOrCreateATA(
-        connection,
-        loanData.nftMint,
+        loanData.nft_mint,
         loanData.lender,
         publicKey,
         sendTransaction
       );
 
       await program.methods
-        .repayLoan()
+        .repay_loan()
         .accounts({
           borrower: publicKey,
+          lender: loanData.lender,
           loan: loanPubkey,
           listing: loanData.listing,
-          collateralMint: loanData.collateralMint,
-          borrowerCollateralAccount: borrowerCollateralATA,
-          vaultCollateralAccount: vaultCollateralATA,
-          lenderCollateralAccount: lenderCollateralATA,
-          borrowerNftAccount: borrowerNftATA,
-          vaultNftAccount: vaultNftATA,
-          lenderNftAccount: lenderNftATA,
-          vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          nftMint: loanData.nftMint,
+          nft_mint: loanData.nft_mint,
+          borrower_nft_account: borrower_nft_ata,
+          vault_nft_account: vault_nft_ata,
+          lender_nft_account: lender_nft_ata,
+          vault_authority,
+          token_program: TOKEN_PROGRAM_ID,
+          associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+          system_program: SystemProgram.programId,
         })
         .rpc();
 
       toast.success('Loan repaid successfully!', { id: toastId });
       setSelectedLoan('');
-    } catch (e) {
-      console.error('Error repaying loan:', e);
-      toast.error(`Failed to repay loan: ${e.message}`, { id: toastId });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error repaying loan:', errorMessage);
+      toast.error(`Failed to repay loan: ${errorMessage}`, { id: toastId });
     }
   };
 
@@ -413,64 +406,27 @@ export function LendDashboard() {
       const loanData = await getLoanData(program, loanPubkey);
 
       // Get the vault authority PDA
-      const [vaultAuthority] = await findVaultAuthorityPDA(programID);
-
-      // Get or create necessary ATAs
-      const vaultCollateralATA = await getOrCreateATA(
-        connection,
-        loanData.collateralMint,
-        vaultAuthority,
-        publicKey,
-        sendTransaction
-      );
-
-      const lenderCollateralATA = await getOrCreateATA(
-        connection,
-        loanData.collateralMint,
-        loanData.lender,
-        publicKey,
-        sendTransaction
-      );
+      const [vault_authority] = await findVaultAuthorityPDA(programID);
 
       await program.methods
-        .liquidateLoan()
+        .liquidate_loan()
         .accounts({
           liquidator: publicKey,
+          lender: loanData.lender,
           loan: loanPubkey,
           listing: loanData.listing,
-          collateralMint: loanData.collateralMint,
-          vaultCollateralAccount: vaultCollateralATA,
-          lenderCollateralAccount: lenderCollateralATA,
-          vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          vault_authority,
+          system_program: SystemProgram.programId,
         })
         .rpc();
 
       toast.success('Loan liquidated successfully!', { id: toastId });
       setSelectedLoan('');
-    } catch (e) {
-      console.error('Error liquidating loan:', e);
-      toast.error(`Failed to liquidate loan: ${e.message}`, { id: toastId });
-    }
-  };
-
-  const fetchActiveLoansByBorrower = async () => {
-    if (!publicKey) return [];
-
-    try {
-      const loans = await program.account.loan.all([
-        {
-          memcmp: {
-            offset: 8, // After discriminator
-            bytes: publicKey.toBase58(),
-          },
-        },
-      ]);
-
-      return loans.filter((loan) => loan.account.isActive);
     } catch (error) {
-      console.error('Error fetching loans:', error);
-      return [];
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error liquidating loan:', errorMessage);
+      toast.error(`Failed to liquidate loan: ${errorMessage}`, { id: toastId });
     }
   };
 
@@ -603,7 +559,7 @@ export function LendDashboard() {
                   </label>
                   <input
                     type='text'
-                    value={nftMint}
+                    value={nft_mint}
                     onChange={(e) => setNftMint(e.target.value)}
                     className='w-full p-2 bg-black/50 border border-cyan-800 rounded text-cyan-500'
                     placeholder='Enter NFT mint address'
@@ -615,7 +571,7 @@ export function LendDashboard() {
                   </label>
                   <input
                     type='number'
-                    value={loanDuration}
+                    value={loan_duration}
                     onChange={(e) => setLoanDuration(e.target.value)}
                     className='w-full p-2 bg-black/50 border border-cyan-800 rounded text-cyan-500'
                     placeholder='Enter loan duration'
@@ -627,7 +583,7 @@ export function LendDashboard() {
                   </label>
                   <input
                     type='number'
-                    value={interestRate}
+                    value={interest_rate}
                     onChange={(e) => setInterestRate(e.target.value)}
                     className='w-full p-2 bg-black/50 border border-cyan-800 rounded text-cyan-500'
                     placeholder='Enter interest rate'
@@ -639,7 +595,7 @@ export function LendDashboard() {
                   </label>
                   <input
                     type='number'
-                    value={collateralAmount}
+                    value={collateral_amount}
                     onChange={(e) => setCollateralAmount(e.target.value)}
                     className='w-full p-2 bg-black/50 border border-cyan-800 rounded text-cyan-500'
                     placeholder='Enter collateral amount'
@@ -676,7 +632,7 @@ export function LendDashboard() {
                     </label>
                     <input
                       type='text'
-                      value={collateralMint}
+                      value={collateral_mint}
                       onChange={(e) => setCollateralMint(e.target.value)}
                       className='w-full p-2 bg-black/50 border border-cyan-800 rounded text-cyan-500'
                       placeholder='Enter collateral mint address'
@@ -688,7 +644,7 @@ export function LendDashboard() {
                     </label>
                     <input
                       type='text'
-                      value={nftMint}
+                      value={nft_mint}
                       onChange={(e) => setNftMint(e.target.value)}
                       className='w-full p-2 bg-black/50 border border-cyan-800 rounded text-cyan-500'
                       placeholder='Enter NFT mint address'
@@ -699,8 +655,8 @@ export function LendDashboard() {
                     disabled={
                       !publicKey ||
                       !selectedListing ||
-                      !collateralMint ||
-                      !nftMint
+                      !collateral_mint ||
+                      !nft_mint
                     }
                     className='w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded 
                       hover:from-cyan-500 hover:to-purple-500 transition-all disabled:opacity-50 

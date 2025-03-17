@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, clusterApiUrl } from "@solana/web3.js";
 
 // This is the previous program id
 // export const PROGRAM_ID = new PublicKey(
@@ -11,3 +11,6 @@ export const PROGRAM_ID = new PublicKey(
   );
 
 export const VAULT_AUTHORITY_SEED = "vault_authority";
+
+export const MAINNET_RPC_URL = clusterApiUrl('mainnet-beta');
+export const TESTNET_RPC_URL = clusterApiUrl('testnet');

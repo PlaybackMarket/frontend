@@ -97,29 +97,36 @@ export const listNFT = async (
       );
     }
 
-    // Add instruction to list the NFT
-    transaction.add(
-      Program.programId(PROGRAM_ID).instruction.listNft(
+    // Create a provider and program instance
+    const provider = new AnchorProvider(connection, wallet, {
+      commitment: 'confirmed',
+    });
+
+    const program = await Program.at(PROGRAM_ID, provider);
+
+    // Create the list_nft instruction
+    const listNftIx = await program.methods
+      .list_nft(
         new BN(loanDuration * 24 * 60 * 60), // Convert days to seconds
         new BN(interestRate * 100), // Convert percentage to basis points
-        new BN(collateralAmount * 1e9), // Convert SOL to lamports
-        {
-          accounts: {
-            lender: wallet.publicKey,
-            listing: listingKeypair.publicKey,
-            nftMint: nftMint,
-            lenderNftAccount: lenderNftAccount,
-            vaultNftAccount: vaultNftAccount,
-            vaultAuthority: vaultAuthority,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
-          },
-          signers: [listingKeypair],
-        }
+        new BN(collateralAmount * 1e9) // Convert SOL to lamports
       )
-    );
+      .accounts({
+        lender: wallet.publicKey,
+        listing: listingKeypair.publicKey,
+        nft_mint: nftMint,
+        lender_nft_account: lenderNftAccount,
+        vault_nft_account: vaultNftAccount,
+        vault_authority: vaultAuthority,
+        token_program: TOKEN_PROGRAM_ID,
+        associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+        system_program: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .instruction();
+
+    // Add the instruction to the transaction
+    transaction.add(listNftIx);
 
     // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection, {
@@ -197,54 +204,36 @@ export const borrowNFT = async (
       })
     );
 
-    // Check if the borrower's NFT account exists, if not create it
-    const borrowerNftAccountInfo = await connection.getAccountInfo(borrowerNftAccount);
-    if (!borrowerNftAccountInfo) {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          borrowerNftAccount, // associated token account
-          wallet.publicKey, // owner
-          nftMint // mint
-        )
-      );
-    }
+    // Create a provider and program instance
+    const provider = new AnchorProvider(connection, wallet, {
+      commitment: 'confirmed',
+    });
 
-    // Check if the vault collateral account exists, if not create it
-    const vaultCollateralAccountInfo = await connection.getAccountInfo(vaultCollateralAccount);
-    if (!vaultCollateralAccountInfo) {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          vaultCollateralAccount, // associated token account
-          vaultAuthority, // owner
-          collateralMint // mint
-        )
-      );
-    }
+    const program = await Program.at(PROGRAM_ID, provider);
 
-    // Add instruction to borrow the NFT
-    transaction.add(
-      Program.programId(PROGRAM_ID).instruction.borrowNft({
-        accounts: {
-          borrower: wallet.publicKey,
-          listing: listing,
-          loan: loanKeypair.publicKey,
-          collateralMint: collateralMint,
-          borrowerCollateralAccount: borrowerCollateralAccount,
-          vaultCollateralAccount: vaultCollateralAccount,
-          borrowerNftAccount: borrowerNftAccount,
-          vaultNftAccount: vaultNftAccount,
-          vaultAuthority: vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
-          nftMint: nftMint,
-        },
-        signers: [loanKeypair],
+    // Create the borrow_nft instruction
+    const borrowNftIx = await program.methods
+      .borrow_nft()
+      .accounts({
+        borrower: wallet.publicKey,
+        listing: listing,
+        loan: loanKeypair.publicKey,
+        collateral_mint: collateralMint,
+        borrower_collateral_account: borrowerCollateralAccount,
+        vault_collateral_account: vaultCollateralAccount,
+        borrower_nft_account: borrowerNftAccount,
+        vault_nft_account: vaultNftAccount,
+        vault_authority: vaultAuthority,
+        token_program: TOKEN_PROGRAM_ID,
+        associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+        system_program: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+        nft_mint: nftMint,
       })
-    );
+      .instruction();
+
+    // Add the instruction to the transaction
+    transaction.add(borrowNftIx);
 
     // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection, {
@@ -348,26 +337,35 @@ export const repayLoan = async (
       );
     }
 
-    // Add instruction to repay the loan
-    transaction.add(
-      Program.programId(PROGRAM_ID).instruction.repayLoan({
-        accounts: {
-          borrower: wallet.publicKey,
-          loan: loan,
-          listing: listing,
-          collateralMint: collateralMint,
-          borrowerCollateralAccount: borrowerCollateralAccount,
-          vaultCollateralAccount: vaultCollateralAccount,
-          lenderCollateralAccount: lenderCollateralAccount,
-          borrowerNftAccount: borrowerNftAccount,
-          vaultNftAccount: vaultNftAccount,
-          lenderNftAccount: lenderNftAccount,
-          vaultAuthority: vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          nftMint: nftMint,
-        },
+    // Create a provider and program instance
+    const provider = new AnchorProvider(connection, wallet, {
+      commitment: 'confirmed',
+    });
+
+    const program = await Program.at(PROGRAM_ID, provider);
+
+    // Create the repay_loan instruction
+    const repayLoanIx = await program.methods
+      .repay_loan()
+      .accounts({
+        borrower: wallet.publicKey,
+        loan: loan,
+        listing: listing,
+        collateral_mint: collateralMint,
+        borrower_collateral_account: borrowerCollateralAccount,
+        vault_collateral_account: vaultCollateralAccount,
+        lender_collateral_account: lenderCollateralAccount,
+        borrower_nft_account: borrowerNftAccount,
+        vault_nft_account: vaultNftAccount,
+        lender_nft_account: lenderNftAccount,
+        vault_authority: vaultAuthority,
+        token_program: TOKEN_PROGRAM_ID,
+        nft_mint: nftMint,
       })
-    );
+      .instruction();
+
+    // Add the instruction to the transaction
+    transaction.add(repayLoanIx);
 
     // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection);
@@ -430,21 +428,30 @@ export const liquidateLoan = async (
       );
     }
 
-    // Add instruction to liquidate the loan
-    transaction.add(
-      Program.programId(PROGRAM_ID).instruction.liquidateLoan({
-        accounts: {
-          liquidator: wallet.publicKey,
-          loan: loan,
-          listing: listing,
-          collateralMint: collateralMint,
-          vaultCollateralAccount: vaultCollateralAccount,
-          lenderCollateralAccount: lenderCollateralAccount,
-          vaultAuthority: vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        },
+    // Create a provider and program instance
+    const provider = new AnchorProvider(connection, wallet, {
+      commitment: 'confirmed',
+    });
+
+    const program = await Program.at(PROGRAM_ID, provider);
+
+    // Create the liquidate_loan instruction
+    const liquidateLoanIx = await program.methods
+      .liquidate_loan()
+      .accounts({
+        liquidator: wallet.publicKey,
+        loan: loan,
+        listing: listing,
+        collateral_mint: collateralMint,
+        vault_collateral_account: vaultCollateralAccount,
+        lender_collateral_account: lenderCollateralAccount,
+        vault_authority: vaultAuthority,
+        token_program: TOKEN_PROGRAM_ID,
       })
-    );
+      .instruction();
+
+    // Add the instruction to the transaction
+    transaction.add(liquidateLoanIx);
 
     // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection);
