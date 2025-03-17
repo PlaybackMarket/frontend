@@ -6,8 +6,8 @@ import {
   useWallet,
   Wallet as SolanaWallet,
 } from "@solana/wallet-adapter-react";
-import { UnsafeBurnerWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { WalletReadyState } from "@solana/wallet-adapter-base";
+import { UnsafeBurnerWalletAdapter } from "@solana/wallet-adapter-wallets";
 
 interface WalletModalProps {
   onClose: () => void;
