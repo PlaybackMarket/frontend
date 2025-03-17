@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { Fragment, useEffect, useState } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
+import { Fragment, useEffect, useState } from "react";
+import { Dialog, Transition } from "@headlessui/react";
 import {
   useWallet,
-  WalletReadyState,
   Wallet as SolanaWallet,
-} from '@solana/wallet-adapter-react';
-import { UnsafeBurnerWalletAdapter } from '@solana/wallet-adapter-wallets';
+} from "@solana/wallet-adapter-react";
+import { UnsafeBurnerWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { WalletReadyState } from "@solana/wallet-adapter-base";
 
 interface WalletModalProps {
   onClose: () => void;
@@ -54,9 +54,12 @@ export function WalletModal({ onClose }: WalletModalProps) {
   // Use the safe check function
   const installedWallets = wallets.filter(isWalletReady);
 
-  const otherWallets = wallets.filter(wallet => {
+  const otherWallets = wallets.filter((wallet) => {
     try {
-      return !isWalletReady(wallet) && !(wallet.adapter instanceof UnsafeBurnerWalletAdapter);
+      return (
+        !isWalletReady(wallet) &&
+        !(wallet.adapter instanceof UnsafeBurnerWalletAdapter)
+      );
     } catch (error) {
       console.error("Error filtering other wallets:", error);
       return false;
@@ -100,7 +103,7 @@ export function WalletModal({ onClose }: WalletModalProps) {
               <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-[#121C31] shadow-xl transition-all max-w-md w-full">
                 <div className="px-6 py-5 border-b border-gray-700">
                   <Dialog.Title className="text-xl font-medium text-white">
-                    {connected ? 'Wallet Connected' : 'Connect a Wallet'}
+                    {connected ? "Wallet Connected" : "Connect a Wallet"}
                   </Dialog.Title>
                 </div>
 
@@ -108,7 +111,9 @@ export function WalletModal({ onClose }: WalletModalProps) {
                   {connected && publicKey ? (
                     <div className="text-center">
                       <div className="bg-[#1F2B47] rounded-lg p-4 mb-4">
-                        <div className="text-sm text-gray-400 mb-1">Connected as</div>
+                        <div className="text-sm text-gray-400 mb-1">
+                          Connected as
+                        </div>
                         <div className="font-mono text-white break-all">
                           {formatWalletAddress(publicKey.toString())}
                         </div>
@@ -123,7 +128,9 @@ export function WalletModal({ onClose }: WalletModalProps) {
                   ) : connecting ? (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                      <p className="text-white">Connecting to {selectedWallet}...</p>
+                      <p className="text-white">
+                        Connecting to {selectedWallet}...
+                      </p>
                       <p className="text-gray-400 text-sm mt-2">
                         Please check your wallet for connection requests
                       </p>
@@ -132,7 +139,9 @@ export function WalletModal({ onClose }: WalletModalProps) {
                     <div>
                       {installedWallets.length > 0 && (
                         <div className="mb-4">
-                          <h3 className="text-white font-medium mb-2">Installed Wallets</h3>
+                          <h3 className="text-white font-medium mb-2">
+                            Installed Wallets
+                          </h3>
                           <div className="space-y-2">
                             {installedWallets.map((wallet) => (
                               <button
@@ -156,7 +165,9 @@ export function WalletModal({ onClose }: WalletModalProps) {
 
                       {otherWallets.length > 0 && (
                         <div>
-                          <h3 className="text-white font-medium mb-2">Other Wallets</h3>
+                          <h3 className="text-white font-medium mb-2">
+                            Other Wallets
+                          </h3>
                           <div className="space-y-2">
                             {otherWallets.map((wallet) => (
                               <button

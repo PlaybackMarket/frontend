@@ -407,7 +407,7 @@ export default function CollectionDetailPage() {
       {selectedOffer && (
         <BorrowingModal
           isOpen={isBorrowingModalOpen}
-          onClose={() => setIsBorrowingModalOpen(false)}
+          onCloseAction={() => setIsBorrowingModalOpen(false)}
           offer={selectedOffer}
         />
       )}

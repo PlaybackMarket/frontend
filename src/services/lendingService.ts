@@ -20,6 +20,7 @@ import {
 import idl from '@/sc/sonic.json';
 import type { Sonic } from '@/sc/types/sonic';
 import toast from 'react-hot-toast';
+import bs58 from 'bs58';
 
 // Program ID from the IDL
 const PROGRAM_ID = new PublicKey(idl.address);
@@ -51,6 +52,13 @@ export const listNFT = async (
   try {
     if (!wallet.publicKey) throw new Error('Wallet not connected');
 
+    const provider = new AnchorProvider(
+      connection,
+      wallet,
+      AnchorProvider.defaultOptions()
+    );
+    const program = new Program<Sonic>(idl as any, provider);
+
     // Create a new keypair for the listing account
     const listingKeypair = Keypair.generate();
 
@@ -67,7 +75,7 @@ export const listNFT = async (
     const vaultNftAccount = await getAssociatedTokenAddress(
       nftMint,
       vaultAuthority,
-      true // allowOwnerOffCurve
+      true
     );
 
     // Create the transaction
@@ -78,7 +86,7 @@ export const listNFT = async (
       SystemProgram.createAccount({
         fromPubkey: wallet.publicKey,
         newAccountPubkey: listingKeypair.publicKey,
-        space: 1000, // Enough space for the listing data
+        space: 1000,
         lamports: await connection.getMinimumBalanceForRentExemption(1000),
         programId: PROGRAM_ID,
       })
@@ -89,36 +97,36 @@ export const listNFT = async (
     if (!vaultNftAccountInfo) {
       transaction.add(
         createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          vaultNftAccount, // associated token account
-          vaultAuthority, // owner
-          nftMint // mint
+          wallet.publicKey,
+          vaultNftAccount,
+          vaultAuthority,
+          nftMint
         )
       );
     }
 
     // Add instruction to list the NFT
     transaction.add(
-      Program.programId(PROGRAM_ID).instruction.listNft(
-        new BN(loanDuration * 24 * 60 * 60), // Convert days to seconds
-        new BN(interestRate * 100), // Convert percentage to basis points
-        new BN(collateralAmount * 1e9), // Convert SOL to lamports
-        {
-          accounts: {
-            lender: wallet.publicKey,
-            listing: listingKeypair.publicKey,
-            nftMint: nftMint,
-            lenderNftAccount: lenderNftAccount,
-            vaultNftAccount: vaultNftAccount,
-            vaultAuthority: vaultAuthority,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
-          },
-          signers: [listingKeypair],
-        }
-      )
+      await program.methods
+        .listNft(
+          new BN(loanDuration),
+          new BN(interestRate),
+          new BN(collateralAmount)
+        )
+        .accounts({
+          lender: wallet.publicKey,
+          listing: listingKeypair.publicKey,
+          nftMint: nftMint,
+          lenderNftAccount: lenderNftAccount,
+          vaultNftAccount: vaultNftAccount,
+          vaultAuthority: vaultAuthority,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+        })
+        .signers([listingKeypair])
+        .instruction()
     );
 
     // Sign and send the transaction
@@ -126,14 +134,67 @@ export const listNFT = async (
       signers: [listingKeypair],
     });
 
-    // Confirm the transaction
     await connection.confirmTransaction(signature);
-
-    toast.success('NFT listed successfully!');
     return signature;
+
   } catch (error) {
     console.error('Error listing NFT:', error);
-    toast.error('Failed to list NFT. Please try again.');
+    throw error;
+  }
+};
+
+/**
+ * Cancel a listing
+ */
+export const cancelListing = async (
+  connection: Connection,
+  wallet: any,
+  listing: PublicKey,
+  nftMint: PublicKey
+): Promise<string> => {
+  try {
+    if (!wallet.publicKey) throw new Error('Wallet not connected');
+
+    const provider = new AnchorProvider(
+      connection,
+      wallet,
+      AnchorProvider.defaultOptions()
+    );
+    const program = new Program<Sonic>(idl as any, PROGRAM_ID, provider);
+
+    const [vaultAuthority] = await getVaultAuthority();
+    const lenderNftAccount = await getAssociatedTokenAddress(
+      nftMint,
+      wallet.publicKey
+    );
+    const vaultNftAccount = await getAssociatedTokenAddress(
+      nftMint,
+      vaultAuthority,
+      true
+    );
+
+    const transaction = new Transaction();
+    transaction.add(
+      await program.methods
+        .cancelListing()
+        .accounts({
+          lender: wallet.publicKey,
+          listing: listing,
+          nftMint: nftMint,
+          vaultNftAccount: vaultNftAccount,
+          lenderNftAccount: lenderNftAccount,
+          vaultAuthority: vaultAuthority,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .instruction()
+    );
+
+    const signature = await wallet.sendTransaction(transaction, connection);
+    await connection.confirmTransaction(signature);
+    return signature;
+
+  } catch (error) {
+    console.error('Error canceling listing:', error);
     throw error;
   }
 };
@@ -145,120 +206,84 @@ export const borrowNFT = async (
   connection: Connection,
   wallet: any,
   listing: PublicKey,
-  nftMint: PublicKey,
-  collateralMint: PublicKey
+  nftMint: PublicKey
 ): Promise<string> => {
   try {
     if (!wallet.publicKey) throw new Error('Wallet not connected');
 
-    // Create a new keypair for the loan account
+    const provider = new AnchorProvider(
+      connection,
+      wallet,
+      AnchorProvider.defaultOptions()
+    );
+    const program = new Program<Sonic>(idl as any, PROGRAM_ID, provider);
+
     const loanKeypair = Keypair.generate();
-
-    // Get the vault authority PDA
     const [vaultAuthority] = await getVaultAuthority();
-
-    // Get the borrower's NFT token account
     const borrowerNftAccount = await getAssociatedTokenAddress(
       nftMint,
       wallet.publicKey
     );
-
-    // Get the vault NFT token account
     const vaultNftAccount = await getAssociatedTokenAddress(
       nftMint,
       vaultAuthority,
-      true // allowOwnerOffCurve
+      true
     );
 
-    // Get the borrower's collateral token account
-    const borrowerCollateralAccount = await getAssociatedTokenAddress(
-      collateralMint,
-      wallet.publicKey
-    );
-
-    // Get the vault collateral token account
-    const vaultCollateralAccount = await getAssociatedTokenAddress(
-      collateralMint,
-      vaultAuthority,
-      true // allowOwnerOffCurve
-    );
-
-    // Create the transaction
     const transaction = new Transaction();
 
-    // Add instruction to create the loan account
+    // Create loan account
     transaction.add(
       SystemProgram.createAccount({
         fromPubkey: wallet.publicKey,
         newAccountPubkey: loanKeypair.publicKey,
-        space: 1000, // Enough space for the loan data
+        space: 1000,
         lamports: await connection.getMinimumBalanceForRentExemption(1000),
         programId: PROGRAM_ID,
       })
     );
 
-    // Check if the borrower's NFT account exists, if not create it
+    // Create borrower's NFT account if it doesn't exist
     const borrowerNftAccountInfo = await connection.getAccountInfo(borrowerNftAccount);
     if (!borrowerNftAccountInfo) {
       transaction.add(
         createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          borrowerNftAccount, // associated token account
-          wallet.publicKey, // owner
-          nftMint // mint
+          wallet.publicKey,
+          borrowerNftAccount,
+          wallet.publicKey,
+          nftMint
         )
       );
     }
 
-    // Check if the vault collateral account exists, if not create it
-    const vaultCollateralAccountInfo = await connection.getAccountInfo(vaultCollateralAccount);
-    if (!vaultCollateralAccountInfo) {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          vaultCollateralAccount, // associated token account
-          vaultAuthority, // owner
-          collateralMint // mint
-        )
-      );
-    }
-
-    // Add instruction to borrow the NFT
     transaction.add(
-      Program.programId(PROGRAM_ID).instruction.borrowNft({
-        accounts: {
+      await program.methods
+        .borrowNft()
+        .accounts({
           borrower: wallet.publicKey,
           listing: listing,
           loan: loanKeypair.publicKey,
-          collateralMint: collateralMint,
-          borrowerCollateralAccount: borrowerCollateralAccount,
-          vaultCollateralAccount: vaultCollateralAccount,
           borrowerNftAccount: borrowerNftAccount,
           vaultNftAccount: vaultNftAccount,
+          nftMint: nftMint,
           vaultAuthority: vaultAuthority,
           tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY,
-          nftMint: nftMint,
-        },
-        signers: [loanKeypair],
-      })
+        })
+        .signers([loanKeypair])
+        .instruction()
     );
 
-    // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection, {
       signers: [loanKeypair],
     });
 
-    // Confirm the transaction
     await connection.confirmTransaction(signature);
-
-    toast.success('NFT borrowed successfully!');
     return signature;
+
   } catch (error) {
     console.error('Error borrowing NFT:', error);
-    toast.error('Failed to borrow NFT. Please try again.');
     throw error;
   }
 };
@@ -272,114 +297,69 @@ export const repayLoan = async (
   loan: PublicKey,
   listing: PublicKey,
   nftMint: PublicKey,
-  collateralMint: PublicKey,
   lender: PublicKey
 ): Promise<string> => {
   try {
     if (!wallet.publicKey) throw new Error('Wallet not connected');
 
-    // Get the vault authority PDA
-    const [vaultAuthority] = await getVaultAuthority();
+    const provider = new AnchorProvider(
+      connection,
+      wallet,
+      AnchorProvider.defaultOptions()
+    );
+    const program = new Program<Sonic>(idl as any,  provider);
 
-    // Get the borrower's NFT token account
+    const [vaultAuthority] = await getVaultAuthority();
     const borrowerNftAccount = await getAssociatedTokenAddress(
       nftMint,
       wallet.publicKey
     );
-
-    // Get the vault NFT token account
     const vaultNftAccount = await getAssociatedTokenAddress(
       nftMint,
       vaultAuthority,
-      true // allowOwnerOffCurve
+      true
     );
-
-    // Get the lender's NFT token account
     const lenderNftAccount = await getAssociatedTokenAddress(
       nftMint,
       lender
     );
 
-    // Get the borrower's collateral token account
-    const borrowerCollateralAccount = await getAssociatedTokenAddress(
-      collateralMint,
-      wallet.publicKey
-    );
-
-    // Get the vault collateral token account
-    const vaultCollateralAccount = await getAssociatedTokenAddress(
-      collateralMint,
-      vaultAuthority,
-      true // allowOwnerOffCurve
-    );
-
-    // Get the lender's collateral token account
-    const lenderCollateralAccount = await getAssociatedTokenAddress(
-      collateralMint,
-      lender
-    );
-
-    // Create the transaction
     const transaction = new Transaction();
 
-    // Check if the lender's NFT account exists, if not create it
+    // Create lender's NFT account if it doesn't exist
     const lenderNftAccountInfo = await connection.getAccountInfo(lenderNftAccount);
     if (!lenderNftAccountInfo) {
       transaction.add(
         createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          lenderNftAccount, // associated token account
-          lender, // owner
-          nftMint // mint
+          wallet.publicKey,
+          lenderNftAccount,
+          lender,
+          nftMint
         )
       );
     }
 
-    // Check if the lender's collateral account exists, if not create it
-    const lenderCollateralAccountInfo = await connection.getAccountInfo(lenderCollateralAccount);
-    if (!lenderCollateralAccountInfo) {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          lenderCollateralAccount, // associated token account
-          lender, // owner
-          collateralMint // mint
-        )
-      );
-    }
-
-    // Add instruction to repay the loan
     transaction.add(
-      Program.programId(PROGRAM_ID).instruction.repayLoan({
-        accounts: {
+      await program.methods
+        .repayLoan()
+        .accounts({
           borrower: wallet.publicKey,
           loan: loan,
           listing: listing,
-          collateralMint: collateralMint,
-          borrowerCollateralAccount: borrowerCollateralAccount,
-          vaultCollateralAccount: vaultCollateralAccount,
-          lenderCollateralAccount: lenderCollateralAccount,
           borrowerNftAccount: borrowerNftAccount,
           vaultNftAccount: vaultNftAccount,
           lenderNftAccount: lenderNftAccount,
-          vaultAuthority: vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
           nftMint: nftMint,
-        },
-      })
+        })
+        .instruction()
     );
 
-    // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection);
-
-    // Confirm the transaction
     await connection.confirmTransaction(signature);
-
-    toast.success('Loan repaid successfully!');
     return signature;
+
   } catch (error) {
     console.error('Error repaying loan:', error);
-    toast.error('Failed to repay loan. Please try again.');
     throw error;
   }
 };
@@ -392,71 +372,40 @@ export const liquidateLoan = async (
   wallet: any,
   loan: PublicKey,
   listing: PublicKey,
-  collateralMint: PublicKey,
   lender: PublicKey
 ): Promise<string> => {
   try {
     if (!wallet.publicKey) throw new Error('Wallet not connected');
 
-    // Get the vault authority PDA
+    const provider = new AnchorProvider(
+      connection,
+      wallet,
+      AnchorProvider.defaultOptions()
+    );
+    const program = new Program<Sonic>(idl as any, PROGRAM_ID, provider);
+
     const [vaultAuthority] = await getVaultAuthority();
 
-    // Get the vault collateral token account
-    const vaultCollateralAccount = await getAssociatedTokenAddress(
-      collateralMint,
-      vaultAuthority,
-      true // allowOwnerOffCurve
-    );
-
-    // Get the lender's collateral token account
-    const lenderCollateralAccount = await getAssociatedTokenAddress(
-      collateralMint,
-      lender
-    );
-
-    // Create the transaction
     const transaction = new Transaction();
 
-    // Check if the lender's collateral account exists, if not create it
-    const lenderCollateralAccountInfo = await connection.getAccountInfo(lenderCollateralAccount);
-    if (!lenderCollateralAccountInfo) {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          lenderCollateralAccount, // associated token account
-          lender, // owner
-          collateralMint // mint
-        )
-      );
-    }
-
-    // Add instruction to liquidate the loan
     transaction.add(
-      Program.programId(PROGRAM_ID).instruction.liquidateLoan({
-        accounts: {
+      await program.methods
+        .liquidateLoan()
+        .accounts({
           liquidator: wallet.publicKey,
+          lender: lender,
           loan: loan,
           listing: listing,
-          collateralMint: collateralMint,
-          vaultCollateralAccount: vaultCollateralAccount,
-          lenderCollateralAccount: lenderCollateralAccount,
-          vaultAuthority: vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        },
-      })
+        })
+        .instruction()
     );
 
-    // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection);
-
-    // Confirm the transaction
     await connection.confirmTransaction(signature);
-
-    toast.success('Loan liquidated successfully!');
     return signature;
+
   } catch (error) {
     console.error('Error liquidating loan:', error);
-    toast.error('Failed to liquidate loan. Please try again.');
     throw error;
   }
 };
@@ -465,16 +414,27 @@ export const liquidateLoan = async (
  * Fetch all active listings
  */
 export const fetchActiveListings = async (
-  connection: Connection
+  connection: Connection,
+  program: Program<Sonic>
 ): Promise<any[]> => {
   try {
-    // This is a placeholder - in a real implementation, you would query the program
-    // for all accounts of type NFTListing and filter for active ones
-    // For now, we'll return mock data
-    return [];
+    const listings = await program.account.nftListing.all([
+      {
+        memcmp: {
+          offset:
+            8 + // discriminator
+            32 + // lender pubkey
+            32 + // nft_mint
+            8 + // loan_duration
+            8 + // interest_rate
+            8, // collateral_amount
+          bytes: bs58.encode(Buffer.from([1])), // is_active = true
+        },
+      },
+    ]);
+    return listings;
   } catch (error) {
     console.error('Error fetching active listings:', error);
-    toast.error('Failed to fetch active listings.');
     return [];
   }
 };
@@ -483,17 +443,34 @@ export const fetchActiveListings = async (
  * Fetch user's active loans
  */
 export const fetchUserLoans = async (
-  connection: Connection,
+  program: Program<Sonic>,
   walletPublicKey: PublicKey
 ): Promise<any[]> => {
   try {
-    // This is a placeholder - in a real implementation, you would query the program
-    // for all accounts of type Loan where borrower is the wallet public key
-    // For now, we'll return mock data
-    return [];
+    const loans = await program.account.loan.all([
+      {
+        memcmp: {
+          offset: 8, // discriminator
+          bytes: walletPublicKey.toBase58(), // borrower
+        },
+      },
+      {
+        memcmp: {
+          offset:
+            8 + // discriminator
+            32 + // borrower
+            32 + // listing
+            8 + // start_time
+            8 + // end_time
+            8 + // collateral_amount
+            8, // interest_rate
+          bytes: bs58.encode(Buffer.from([1])), // is_active = true
+        },
+      },
+    ]);
+    return loans;
   } catch (error) {
     console.error('Error fetching user loans:', error);
-    toast.error('Failed to fetch your loans.');
     return [];
   }
 };
