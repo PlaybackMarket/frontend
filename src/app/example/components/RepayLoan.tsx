@@ -72,23 +72,27 @@ const RepayLoan: FC = () => {
         },
       ]);
 
-      // Fetch listing details for each loan
-      const enrichedLoans = await Promise.all(
-        loans.map(async (loan) => {
-          try {
-            const listing = await program.account.nftListing.fetch(
-              loan.account.listing
-            );
-            return {
-              ...loan,
-              listing,
-            };
-          } catch (error) {
-            console.error("Error fetching listing:", error);
-            return loan;
-          }
-        })
-      );
+      // Fetch listing details for each loan and filter out invalid ones
+      const enrichedLoans = (
+        await Promise.all(
+          loans.map(async (loan) => {
+            try {
+              const listing = await program.account.nftListing.fetch(
+                loan.account.listing
+              );
+              return {
+                ...loan,
+                listing,
+              };
+            } catch (error) {
+              console.log(
+                `Skipping loan ${loan.publicKey.toString()} - listing not found`
+              );
+              return null;
+            }
+          })
+        )
+      ).filter((loan): loan is NonNullable<typeof loan> => loan !== null);
 
       setActiveLoans(enrichedLoans);
     } catch (error) {

@@ -64,27 +64,28 @@ const LiquidateLoan: FC = () => {
         (loan) => loan.account.endTime < currentTime
       );
 
-      // Fetch listing details for each expired loan
-      const enrichedLoans = await Promise.all(
-        expiredLoans.map(async (loan) => {
-          try {
-            const listing = await program.account.nftListing.fetch(
-              loan.account.listing
-            );
-            return {
-              ...loan,
-              listing,
-              timeOverdue: currentTime - loan.account.endTime,
-            };
-          } catch (error) {
-            console.error("Error fetching listing:", error);
-            return loan;
-          }
-        })
-      );
+      // Fetch listing details for each expired loan and filter out invalid ones
+      const enrichedLoans = (
+        await Promise.all(
+          expiredLoans.map(async (loan) => {
+            try {
+              const listing = await program.account.nftListing.fetch(
+                loan.account.listing
+              );
+              return {
+                ...loan,
+                listing,
+                timeOverdue: currentTime - loan.account.endTime,
+              };
+            } catch (error) {
+              // If we can't fetch the listing, the loan has likely been liquidated
+              // Return null to filter it out
+              return null;
+            }
+          })
+        )
+      ).filter((loan): loan is NonNullable<typeof loan> => loan !== null);
 
-      // Sort by most overdue first
-      // enrichedLoans.sort((a, b) => b.timeOverdue - a.timeOverdue);
       setLiquidatableLoans(enrichedLoans);
     } catch (error) {
       console.error("Error fetching liquidatable loans:", error);

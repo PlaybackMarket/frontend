@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/sonic.json`.
  */
 export type Sonic = {
-  "address": "BEF3CqKU1Db7FsqHyuugE7xd6YCz7gD3jMi2wA1yeD4x",
+  "address": "7kpZb8kihX7FRtjVNsGYrGZqUmFzzsQSuEPo1zUo35vC",
   "metadata": {
     "name": "sonic",
     "version": "0.1.0",
