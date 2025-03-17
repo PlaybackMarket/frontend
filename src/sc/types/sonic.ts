@@ -4,616 +4,178 @@
  * Note that this is only a type helper and is not the actual IDL. The original
  * IDL can be found at `target/idl/sonic.json`.
  */
-export type Sonic = {
-  "address": "7kpZb8kihX7FRtjVNsGYrGZqUmFzzsQSuEPo1zUo35vC",
-  "metadata": {
-    "name": "sonic",
-    "version": "0.1.0",
-    "spec": "0.1.0",
-    "description": "Created with Anchor"
-  },
-  "instructions": [
+import { Idl } from '@project-serum/anchor';
+
+export interface Sonic extends Idl {
+  version: '0.1.0';
+  name: 'sonic';
+  instructions: [
     {
-      "name": "borrowNft",
-      "discriminator": [
-        204,
-        252,
-        145,
-        5,
-        59,
-        189,
-        158,
-        223
-      ],
-      "accounts": [
-        {
-          "name": "borrower",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "listing",
-          "writable": true
-        },
-        {
-          "name": "loan",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "borrowerNftAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultNftAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultAuthority",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
-          "name": "nftMint"
-        }
-      ],
-      "args": []
+      name: 'borrow_nft';
+      accounts: [
+        { name: 'borrower'; isMut: true; isSigner: true },
+        { name: 'listing'; isMut: true; isSigner: false },
+        { name: 'loan'; isMut: true; isSigner: true },
+        { name: 'borrower_nft_account'; isMut: true; isSigner: false },
+        { name: 'vault_nft_account'; isMut: true; isSigner: false },
+        { name: 'vault_authority'; isMut: true; isSigner: false; pda: { seeds: [{ kind: 'const'; value: number[] }] } },
+        { name: 'token_program'; isMut: false; isSigner: false; address: string },
+        { name: 'system_program'; isMut: false; isSigner: false; address: string },
+        { name: 'rent'; isMut: false; isSigner: false; address: string },
+        { name: 'nft_mint'; isMut: false; isSigner: false }
+      ];
+      args: [];
     },
     {
-      "name": "cancelListing",
-      "discriminator": [
-        41,
-        183,
-        50,
-        232,
-        230,
-        233,
-        157,
-        70
-      ],
-      "accounts": [
-        {
-          "name": "lender",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "listing",
-          "writable": true
-        },
-        {
-          "name": "nftMint"
-        },
-        {
-          "name": "vaultNftAccount",
-          "writable": true
-        },
-        {
-          "name": "lenderNftAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultAuthority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        }
-      ],
-      "args": []
+      name: 'cancel_listing';
+      accounts: [
+        { name: 'lender'; isMut: true; isSigner: true },
+        { name: 'listing'; isMut: true; isSigner: false },
+        { name: 'nft_mint'; isMut: false; isSigner: false },
+        { name: 'vault_nft_account'; isMut: true; isSigner: false },
+        { name: 'lender_nft_account'; isMut: true; isSigner: false },
+        { name: 'vault_authority'; isMut: false; isSigner: false; pda: { seeds: [{ kind: 'const'; value: number[] }] } },
+        { name: 'token_program'; isMut: false; isSigner: false; address: string }
+      ];
+      args: [];
     },
     {
-      "name": "initialize",
-      "discriminator": [
-        175,
-        175,
-        109,
-        31,
-        13,
-        152,
-        155,
-        237
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "state",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
+      name: 'initialize';
+      accounts: [
+        { name: 'authority'; isMut: true; isSigner: true },
+        { name: 'state'; isMut: true; isSigner: true },
+        { name: 'system_program'; isMut: false; isSigner: false; address: string }
+      ];
+      args: [];
     },
     {
-      "name": "liquidateLoan",
-      "discriminator": [
-        111,
-        249,
-        185,
-        54,
-        161,
-        147,
-        178,
-        24
-      ],
-      "accounts": [
-        {
-          "name": "liquidator",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "lender",
-          "writable": true
-        },
-        {
-          "name": "loan",
-          "writable": true
-        },
-        {
-          "name": "listing",
-          "writable": true
-        },
-        {
-          "name": "vaultAuthority",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
+      name: 'liquidate_loan';
+      accounts: [
+        { name: 'liquidator'; isMut: true; isSigner: true },
+        { name: 'lender'; isMut: true; isSigner: false },
+        { name: 'loan'; isMut: true; isSigner: false },
+        { name: 'listing'; isMut: true; isSigner: false },
+        { name: 'vault_authority'; isMut: true; isSigner: false; pda: { seeds: [{ kind: 'const'; value: number[] }] } },
+        { name: 'system_program'; isMut: false; isSigner: false; address: string }
+      ];
+      args: [];
     },
     {
-      "name": "listNft",
-      "discriminator": [
-        88,
-        221,
-        93,
-        166,
-        63,
-        220,
-        106,
-        232
-      ],
-      "accounts": [
-        {
-          "name": "lender",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "listing",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "nftMint"
-        },
-        {
-          "name": "lenderNftAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultNftAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultAuthority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "loanDuration",
-          "type": "i64"
-        },
-        {
-          "name": "interestRate",
-          "type": "u64"
-        },
-        {
-          "name": "collateralAmount",
-          "type": "u64"
-        }
-      ]
+      name: 'list_nft';
+      accounts: [
+        { name: 'lender'; isMut: true; isSigner: true },
+        { name: 'listing'; isMut: true; isSigner: true },
+        { name: 'nft_mint'; isMut: false; isSigner: false },
+        { name: 'lender_nft_account'; isMut: true; isSigner: false },
+        { name: 'vault_nft_account'; isMut: true; isSigner: false },
+        { name: 'vault_authority'; isMut: false; isSigner: false; pda: { seeds: [{ kind: 'const'; value: number[] }] } },
+        { name: 'token_program'; isMut: false; isSigner: false; address: string },
+        { name: 'associated_token_program'; isMut: false; isSigner: false; address: string },
+        { name: 'system_program'; isMut: false; isSigner: false; address: string },
+        { name: 'rent'; isMut: false; isSigner: false; address: string }
+      ];
+      args: [
+        { name: 'loan_duration'; type: 'u64' },
+        { name: 'interest_rate'; type: 'u64' },
+        { name: 'collateral_amount'; type: 'u64' }
+      ];
     },
     {
-      "name": "repayLoan",
-      "discriminator": [
-        224,
-        93,
-        144,
-        77,
-        61,
-        17,
-        137,
-        54
-      ],
-      "accounts": [
-        {
-          "name": "borrower",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "lender",
-          "writable": true
-        },
-        {
-          "name": "loan",
-          "writable": true
-        },
-        {
-          "name": "listing",
-          "writable": true
-        },
-        {
-          "name": "nftMint"
-        },
-        {
-          "name": "borrowerNftAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultNftAccount",
-          "writable": true
-        },
-        {
-          "name": "lenderNftAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultAuthority",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
+      name: 'repay_loan';
+      accounts: [
+        { name: 'borrower'; isMut: true; isSigner: true },
+        { name: 'lender'; isMut: true; isSigner: false },
+        { name: 'loan'; isMut: true; isSigner: false },
+        { name: 'listing'; isMut: true; isSigner: false },
+        { name: 'nft_mint'; isMut: false; isSigner: false },
+        { name: 'borrower_nft_account'; isMut: true; isSigner: false },
+        { name: 'vault_nft_account'; isMut: true; isSigner: false },
+        { name: 'lender_nft_account'; isMut: true; isSigner: false },
+        { name: 'vault_authority'; isMut: false; isSigner: false; pda: { seeds: [{ kind: 'const'; value: number[] }] } },
+        { name: 'token_program'; isMut: false; isSigner: false; address: string },
+        { name: 'associated_token_program'; isMut: false; isSigner: false; address: string },
+        { name: 'system_program'; isMut: false; isSigner: false; address: string }
+      ];
+      args: [];
     }
-  ],
-  "accounts": [
+  ];
+  accounts: [
     {
-      "name": "loan",
-      "discriminator": [
-        20,
-        195,
-        70,
-        117,
-        165,
-        227,
-        182,
-        1
-      ]
+      name: 'loan';
+      type: {
+        kind: 'struct';
+        fields: [
+          { name: 'borrower'; type: 'publicKey' },
+          { name: 'listing'; type: 'publicKey' },
+          { name: 'start_time'; type: 'i64' },
+          { name: 'end_time'; type: 'i64' },
+          { name: 'collateral_amount'; type: 'u64' },
+          { name: 'interest_rate'; type: 'u64' },
+          { name: 'loan_duration'; type: 'u64' },
+          { name: 'is_active'; type: 'bool' }
+        ];
+      };
     },
     {
-      "name": "nftListing",
-      "discriminator": [
-        35,
-        98,
-        212,
-        46,
-        196,
-        243,
-        199,
-        114
-      ]
-    },
-    {
-      "name": "protocolState",
-      "discriminator": [
-        33,
-        51,
-        173,
-        134,
-        35,
-        140,
-        195,
-        248
-      ]
+      name: 'nft_listing';
+      type: {
+        kind: 'struct';
+        fields: [
+          { name: 'lender'; type: 'publicKey' },
+          { name: 'nft_mint'; type: 'publicKey' },
+          { name: 'loan_duration'; type: 'u64' },
+          { name: 'interest_rate'; type: 'u64' },
+          { name: 'collateral_amount'; type: 'u64' },
+          { name: 'is_active'; type: 'bool' }
+        ];
+      };
     }
-  ],
-  "errors": [
+  ];
+  errors: [
     {
-      "code": 6000,
-      "name": "listingNotActive",
-      "msg": "The listing is not active"
+      code: 6000;
+      name: 'listing_not_active';
+      msg: 'The listing is not active';
     },
     {
-      "code": 6001,
-      "name": "loanNotActive",
-      "msg": "The loan is not active"
+      code: 6001;
+      name: 'loan_not_active';
+      msg: 'The loan is not active';
     },
     {
-      "code": 6002,
-      "name": "loanLiquidated",
-      "msg": "The loan has already been liquidated"
+      code: 6002;
+      name: 'loan_liquidated';
+      msg: 'The loan has already been liquidated';
     },
     {
-      "code": 6003,
-      "name": "loanNotLiquidatable",
-      "msg": "The loan cannot be liquidated yet"
+      code: 6003;
+      name: 'loan_not_liquidatable';
+      msg: 'The loan cannot be liquidated yet';
     },
     {
-      "code": 6004,
-      "name": "invalidDuration",
-      "msg": "Invalid loan duration"
+      code: 6004;
+      name: 'invalid_duration';
+      msg: 'Invalid loan duration';
     },
     {
-      "code": 6005,
-      "name": "invalidCollateral",
-      "msg": "Invalid collateral amount"
+      code: 6005;
+      name: 'invalid_collateral';
+      msg: 'Invalid collateral amount';
     },
     {
-      "code": 6006,
-      "name": "unauthorizedAccess",
-      "msg": "Unauthorized access"
+      code: 6006;
+      name: 'unauthorized_access';
+      msg: 'Unauthorized access';
     },
     {
-      "code": 6007,
-      "name": "mathOverflow",
-      "msg": "Math overflow"
+      code: 6007;
+      name: 'math_overflow';
+      msg: 'Math overflow';
     },
     {
-      "code": 6008,
-      "name": "invalidTokenBalance",
-      "msg": "Invalid token balance"
+      code: 6008;
+      name: 'invalid_token_balance';
+      msg: 'Invalid token balance';
     }
-  ],
-  "types": [
-    {
-      "name": "loan",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "borrower",
-            "type": "pubkey"
-          },
-          {
-            "name": "listing",
-            "type": "pubkey"
-          },
-          {
-            "name": "startTime",
-            "type": "i64"
-          },
-          {
-            "name": "endTime",
-            "type": "i64"
-          },
-          {
-            "name": "collateralAmount",
-            "type": "u64"
-          },
-          {
-            "name": "interestRate",
-            "type": "u64"
-          },
-          {
-            "name": "isActive",
-            "type": "bool"
-          },
-          {
-            "name": "isLiquidated",
-            "type": "bool"
-          }
-        ]
-      }
-    },
-    {
-      "name": "nftListing",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "lender",
-            "type": "pubkey"
-          },
-          {
-            "name": "nftMint",
-            "type": "pubkey"
-          },
-          {
-            "name": "loanDuration",
-            "type": "i64"
-          },
-          {
-            "name": "interestRate",
-            "type": "u64"
-          },
-          {
-            "name": "collateralAmount",
-            "type": "u64"
-          },
-          {
-            "name": "isActive",
-            "type": "bool"
-          }
-        ]
-      }
-    },
-    {
-      "name": "protocolState",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "protocolFee",
-            "type": "u16"
-          }
-        ]
-      }
-    }
-  ]
-};
+  ];
+}

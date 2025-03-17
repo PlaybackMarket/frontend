@@ -3,8 +3,11 @@ import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { fetchDigitalAsset, mplTokenMetadata } from "@metaplex-foundation/mpl-token-metadata";
 import { publicKey, createSignerFromKeypair, generateSigner, signerIdentity } from "@metaplex-foundation/umi";
 import { toast } from 'react-hot-toast';
-import { Program, AnchorProvider } from '@coral-xyz/anchor';
-import { clusterApiUrl } from '@solana/web3.js';
+import { Program, AnchorProvider, Wallet } from '@project-serum/anchor';
+import { LendingOffer } from '../types/lending';
+import { MAINNET_RPC_URL, TESTNET_RPC_URL, PROGRAM_ID } from '../lib/constants';
+import idl from '../sc/sonic.json';
+import { Sonic } from '../sc/types/sonic';
 
 // Define the collection interface
 export interface Collection {
@@ -34,18 +37,14 @@ export interface NFT {
   price?: number;
 }
 
-// Sonic SVM RPC URLs
-const MAINNET_RPC_URL = process.env.NEXT_PUBLIC_SONIC_MAINNET_RPC || 'https://rpc.mainnet-alpha.sonic.game';
-const TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SONIC_TESTNET_RPC || 'https://api.testnet.sonic.game';
-
 // Add interface for NFTListing from smart contract
 export interface NFTListing {
   lender: PublicKey;
-  nftMint: PublicKey;
-  loanDuration: number;
-  interestRate: number;
-  collateralAmount: number;
-  isActive: boolean;
+  nft_mint: PublicKey;
+  loan_duration: bigint;
+  interest_rate: bigint;
+  collateral_amount: bigint;
+  is_active: boolean;
 }
 
 /**
@@ -366,20 +365,37 @@ export async function fetchActiveListings(
       { commitment: 'confirmed' }
     );
 
-    const program = new Program(idl as any, new PublicKey(idl.address), provider);
+    const program = new Program<Sonic>(
+      {
+        version: '0.1.0',
+        name: 'sonic',
+        instructions: idl.instructions.map(ix => ({
+          ...ix,
+          accounts: ix.accounts.map(acc => ({
+            ...acc,
+            isMut: acc.writable,
+            isSigner: acc.signer,
+          })),
+        })),
+        accounts: idl.accounts,
+        errors: idl.errors,
+      } as unknown as Sonic,
+      new PublicKey(idl.address),
+      provider
+    );
 
     // Fetch all NFT listings from the program
-    const listings = await program.account.nftListing.all();
+    const listings = await program.account.nft_listing.all();
 
     // Filter active listings
     const activeListings = listings.filter(
-      (listing) => listing.account.isActive
+      (listing) => listing.account.is_active
     );
 
     // Convert listings to LendingOffers
     const offers = await Promise.all(
       activeListings.map(async (listing) => {
-        const nftMint = listing.account.nftMint.toString();
+        const nftMint = listing.account.nft_mint.toString();
         
         // If collectionId is provided, filter listings for that collection
         if (collectionId && !nftMint.startsWith(collectionId)) {
@@ -397,9 +413,9 @@ export async function fetchActiveListings(
           nftImage: metadata.offChain?.image || `https://via.placeholder.com/150?text=${metadata.onChain.name}`,
           collection: metadata.onChain.symbol,
           lender: listing.account.lender.toString(),
-          loanDuration: listing.account.loanDuration / (24 * 60 * 60), // Convert seconds to days
-          interestRate: listing.account.interestRate / 100, // Convert basis points to percentage
-          collateralRequired: listing.account.collateralAmount / 1e9, // Convert lamports to SOL
+          loanDuration: Number(listing.account.loan_duration) / (24 * 60 * 60), // Convert seconds to days
+          interestRate: Number(listing.account.interest_rate) / 100, // Convert basis points to percentage
+          collateralRequired: Number(listing.account.collateral_amount) / 1e9, // Convert lamports to SOL
           listedAt: Math.floor(Date.now() / 1000), // Current timestamp as listing time
           floorPrice: 0, // This should be updated with actual floor price
         };
@@ -411,6 +427,68 @@ export async function fetchActiveListings(
   } catch (error) {
     console.error('Error fetching active listings:', error);
     toast.error('Failed to fetch active listings');
+    return [];
+  }
+}
+
+export async function getLendingOffers(
+  collectionId?: string,
+  isMainnet: boolean = true
+): Promise<LendingOffer[]> {
+  try {
+    const rpcUrl = isMainnet ? MAINNET_RPC_URL : TESTNET_RPC_URL;
+    const connection = new Connection(rpcUrl);
+    
+    // Create a dummy wallet for the provider
+    const wallet = {
+      publicKey: null,
+      signTransaction: async (tx: any) => tx,
+      signAllTransactions: async (txs: any[]) => txs,
+    } as unknown as Wallet;
+
+    const provider = new AnchorProvider(connection, wallet, {
+      commitment: 'confirmed',
+    });
+
+    const program = new Program<Sonic>(
+      {
+        version: '0.1.0',
+        name: 'sonic',
+        instructions: idl.instructions.map(ix => ({
+          ...ix,
+          accounts: ix.accounts.map(acc => ({
+            ...acc,
+            isMut: acc.writable,
+            isSigner: acc.signer,
+          })),
+        })),
+        accounts: idl.accounts,
+        errors: idl.errors,
+      } as unknown as Sonic,
+      PROGRAM_ID,
+      provider
+    );
+
+    const listings = await program.account.nft_listing.all();
+    
+    return listings.map(listing => {
+      const account = listing.account as NFTListing;
+      return {
+        id: listing.publicKey.toBase58(),
+        nftId: account.nft_mint.toBase58(),
+        nftName: 'Unknown NFT', // You'll need to fetch this from metadata
+        nftImage: '', // You'll need to fetch this from metadata
+        collection: collectionId || 'Unknown Collection',
+        lender: account.lender.toBase58(),
+        loanDuration: Number(account.loan_duration) / (24 * 60 * 60), // Convert seconds to days
+        interestRate: Number(account.interest_rate) / 100, // Convert basis points to percentage
+        collateralRequired: Number(account.collateral_amount) / 1e9, // Convert lamports to SOL
+        listedAt: Math.floor(Date.now() / 1000), // Current timestamp as listing time
+        floorPrice: 0, // You'll need to fetch this from your price oracle
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching lending offers:', error);
     return [];
   }
 } 
