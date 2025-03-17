@@ -31,6 +31,7 @@ import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
+import { PROGRAM_ID } from "@/lib/constants";
 
 interface Loan {
   listing: PublicKey;
@@ -64,9 +65,7 @@ export function LendDashboard() {
 
   const connection = new Connection(network.endpoint);
 
-  const programID = new PublicKey(
-    "BEF3CqKU1Db7FsqHyuugE7xd6YCz7gD3jMi2wA1yeD4x"
-  );
+  const programID = PROGRAM_ID;
 
   // const program = new Program(idl as Sonic);
   const program = new Program<Sonic>(idl, {} as Provider);
