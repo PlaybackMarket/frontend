@@ -1,22 +1,22 @@
 // @ts-nocheck
 
-import { FC, useState, useEffect } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { FC, useState, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection } from '@solana/wallet-adapter-react';
+import { PublicKey, SystemProgram } from '@solana/web3.js';
 import {
   Program,
   AnchorProvider,
   setProvider,
   BN,
   type Provider,
-} from "@coral-xyz/anchor";
-import toast from "react-hot-toast";
-import type { Sonic } from "@/sc/types/sonic";
-import idl from "@/sc/sonic.json";
-import { PROGRAM_ID, VAULT_AUTHORITY_SEED } from "@/lib/constants";
-import { formatOverdueTime, formatCollateral } from "@/lib/format";
-import bs58 from "bs58";
+} from '@coral-xyz/anchor';
+import toast from 'react-hot-toast';
+import type { Sonic } from '@/sc/types/sonic';
+import idl from '@/sc/sonic.json';
+import { PROGRAM_ID, VAULT_AUTHORITY_SEED } from '@/lib/constants';
+import { formatOverdueTime, formatCollateral } from '@/lib/format';
+import bs58 from 'bs58';
 
 const LiquidateLoan: FC = () => {
   const wallet = useWallet();
@@ -90,18 +90,18 @@ const LiquidateLoan: FC = () => {
 
       setLiquidatableLoans(enrichedLoans);
     } catch (error) {
-      console.error("Error fetching liquidatable loans:", error);
-      toast.error("Failed to fetch liquidatable loans");
+      console.error('Error fetching liquidatable loans:', error);
+      toast.error('Failed to fetch liquidatable loans');
     }
   };
 
   const handleLiquidate = async (loan: any) => {
     if (!wallet.publicKey) {
-      toast.error("Please connect your wallet");
+      toast.error('Please connect your wallet');
       return;
     }
 
-    const toastId = toast.loading("Liquidating loan...");
+    const toastId = toast.loading('Liquidating loan...');
     setLoading(true);
 
     try {
@@ -122,11 +122,11 @@ const LiquidateLoan: FC = () => {
         })
         .rpc();
 
-      toast.success("Successfully liquidated loan!", { id: toastId });
+      toast.success('Successfully liquidated loan!', { id: toastId });
       // Refresh the list after successful liquidation
       fetchLiquidatableLoans();
     } catch (error) {
-      console.error("Error liquidating loan:", error);
+      console.error('Error liquidating loan:', error);
       toast.error(`Failed to liquidate loan: ${error.message}`, {
         id: toastId,
       });
@@ -136,58 +136,58 @@ const LiquidateLoan: FC = () => {
   };
 
   return (
-    <div className="p-4 border rounded">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl">Liquidatable Loans</h2>
+    <div className='p-4 border rounded'>
+      <div className='flex justify-between items-center mb-4'>
+        <h2 className='text-xl'>Liquidatable Loans</h2>
         <button
           onClick={fetchLiquidatableLoans}
-          className="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded"
+          className='text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded'
         >
           Refresh
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className='space-y-4'>
         {liquidatableLoans.map((loan, index) => (
-          <div key={index} className="p-4 border rounded bg-gray-800">
-            <div className="flex justify-between items-start mb-4">
+          <div key={index} className='p-4 border rounded bg-gray-800'>
+            <div className='flex justify-between items-start mb-4'>
               <div>
-                <p className="text-sm text-gray-400">NFT</p>
-                <p className="font-mono text-sm">
+                <p className='text-sm text-gray-400'>NFT</p>
+                <p className='font-mono text-sm'>
                   {loan.listing.nftMint.toString().slice(0, 16)}...
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-400">Status</p>
-                <p className="font-bold text-red-400">
+              <div className='text-right'>
+                <p className='text-sm text-gray-400'>Status</p>
+                <p className='font-bold text-red-400'>
                   {formatOverdueTime(loan.timeOverdue)}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className='grid grid-cols-2 gap-4 mb-4'>
               <div>
-                <p className="text-sm text-gray-400">Collateral Available</p>
-                <p className="font-bold text-green-400">
+                <p className='text-sm text-gray-400'>Collateral Available</p>
+                <p className='font-bold text-green-400'>
                   {formatCollateral(loan.account.collateralAmount)}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-400">Interest Rate</p>
+                <p className='text-sm text-gray-400'>Interest Rate</p>
                 <p>{loan.account.interestRate.toString()}%</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className='grid grid-cols-2 gap-4 mb-4'>
               <div>
-                <p className="text-sm text-gray-400">Borrower</p>
-                <p className="font-mono text-sm">
+                <p className='text-sm text-gray-400'>Borrower</p>
+                <p className='font-mono text-sm'>
                   {loan.account.borrower.toString().slice(0, 16)}...
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-400">Lender</p>
-                <p className="font-mono text-sm">
+                <p className='text-sm text-gray-400'>Lender</p>
+                <p className='font-mono text-sm'>
                   {loan.listing.lender.toString().slice(0, 16)}...
                 </p>
               </div>
@@ -196,16 +196,16 @@ const LiquidateLoan: FC = () => {
             <button
               onClick={() => handleLiquidate(loan)}
               disabled={loading}
-              className="w-full bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+              className='w-full bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50'
             >
-              {loading ? "Processing..." : "Liquidate Loan"}
+              {loading ? 'Processing...' : 'Liquidate Loan'}
             </button>
           </div>
         ))}
         {liquidatableLoans.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-400">No liquidatable loans found</p>
-            <p className="text-gray-500 text-sm mt-2">
+          <div className='text-center py-8'>
+            <p className='text-gray-400'>No liquidatable loans found</p>
+            <p className='text-gray-500 text-sm mt-2'>
               Loans become liquidatable after their repayment deadline
             </p>
           </div>
