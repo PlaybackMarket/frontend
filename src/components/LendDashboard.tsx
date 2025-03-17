@@ -32,6 +32,7 @@ import {
   createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 import { PROGRAM_ID } from "@/lib/constants";
+import bs58 from "bs58";
 
 interface Loan {
   listing: PublicKey;
@@ -146,37 +147,86 @@ export function LendDashboard() {
       toast.error("Please fill in all fields");
       return;
     }
-    const listing = Keypair.generate();
-    const lenderNftAccount = await getAssociatedTokenAddress(
-      nftMint,
-      wallet.publicKey
-    );
-    const vaultNftAccount = await getAssociatedTokenAddress(
-      nftMint,
-      vault_authority,
-      true
-    );
+
     const toastId = toast.loading("Listing NFT...");
+    setLoading(true);
+
     try {
+      // Create provider and set it
+      const provider = new AnchorProvider(
+        connection,
+        wallet as any,
+        AnchorProvider.defaultOptions()
+      );
+      setProvider(provider);
+
+      // Initialize program with provider
+      const program = new Program<Sonic>(idl, provider);
+
+      // Create a new keypair for the listing account
+      const listing = Keypair.generate();
+
+      // Get PDAs and token accounts
+      const [vault_authority] = PublicKey.findProgramAddressSync(
+        [Buffer.from(VAULT_AUTHORITY_SEED)],
+        PROGRAM_ID
+      );
+
+      const nftMintPubkey = new PublicKey(nftMint);
+      const lenderNftAccount = await getAssociatedTokenAddress(
+        nftMintPubkey,
+        publicKey
+      );
+      const vaultNftAccount = await getAssociatedTokenAddress(
+        nftMintPubkey,
+        vault_authority,
+        true
+      );
+
+      // Create the vault_nft_account if it doesn't exist
+      const vaultNftAccountInfo = await connection.getAccountInfo(
+        vaultNftAccount
+      );
+      if (!vaultNftAccountInfo) {
+        const createAtaIx = createAssociatedTokenAccountInstruction(
+          publicKey,
+          vaultNftAccount,
+          vault_authority,
+          nftMintPubkey
+        );
+        const tx = new Transaction().add(createAtaIx);
+        const signature = await sendTransaction(tx, connection);
+        await connection.confirmTransaction(signature, "confirmed");
+      }
+
       await program.methods
         .listNft(
-          new BN(loanDuration),
-          new BN(interestRate),
-          new BN(collateralAmount)
+          new BN(parseInt(loanDuration)),
+          new BN(parseInt(interestRate)),
+          new BN(parseInt(collateralAmount))
         )
         .accounts({
-          lender: wallet.publicKey,
+          lender: publicKey,
           listing: listing.publicKey,
-          nftMint,
+          nftMint: nftMintPubkey,
           lenderNftAccount,
           vaultNftAccount,
         })
+        .signers([listing])
         .rpc();
 
       toast.success("NFT listed successfully!", { id: toastId });
+
+      // Clear form
+      setNftMint("");
+      setLoanDuration("");
+      setInterestRate("");
+      setCollateralAmount("");
     } catch (e) {
       console.error("Error listing NFT:", e);
-      toast.error("Failed to list NFT", { id: toastId });
+      toast.error(`Failed to list NFT: ${e}`, { id: toastId });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -193,7 +243,10 @@ export function LendDashboard() {
     mint: PublicKey,
     owner: PublicKey,
     payer: PublicKey,
-    sendTransaction: (transaction: Transaction) => Promise<string>
+    sendTransaction: (
+      transaction: Transaction,
+      connection: Connection
+    ) => Promise<string>
   ): Promise<PublicKey> {
     try {
       const ata = await getAssociatedTokenAddress(mint, owner);
@@ -204,7 +257,7 @@ export function LendDashboard() {
         const transaction = new Transaction().add(
           createAssociatedTokenAccountInstruction(payer, ata, owner, mint)
         );
-        await sendTransaction(transaction);
+        const signature = await sendTransaction(transaction, connection);
         await connection.confirmTransaction(signature, "confirmed");
       }
 
@@ -297,16 +350,8 @@ export function LendDashboard() {
           borrower: publicKey,
           listing: new PublicKey(selectedListing),
           loan: loanKeypair.publicKey,
-          collateralMint: new PublicKey(collateralMint),
-          borrowerCollateralAccount: borrowerCollateralATA,
-          vaultCollateralAccount: vaultCollateralATA,
           borrowerNftAccount: borrowerNftATA,
           vaultNftAccount: vaultNftATA,
-          vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
           nftMint: nftMintPubkey,
         })
         .signers([loanKeypair])
@@ -320,150 +365,211 @@ export function LendDashboard() {
       setNftMint("");
     } catch (e) {
       console.error("Error borrowing NFT:", e);
-      toast.error(`Failed to borrow NFT: ${e.message}`, { id: toastId });
+      toast.error(`Failed to borrow NFT: ${e}`, { id: toastId });
     }
   };
 
-  const handleRepayLoan = async () => {
-    if (!publicKey || !selectedLoan) {
-      toast.error("Please select a loan to repay");
+  const fetchActiveLoans = async () => {
+    if (!program || !wallet.publicKey) return;
+
+    try {
+      // Get all Loan accounts for the connected wallet
+      const loans = await program.account.loan.all([
+        {
+          memcmp: {
+            offset: 8, // discriminator
+            bytes: wallet.publicKey.toBase58(), // borrower
+          },
+        },
+        {
+          memcmp: {
+            offset:
+              8 + // discriminator
+              32 + // borrower
+              32 + // listing
+              8 + // start_time
+              8 + // end_time
+              8 + // collateral_amount
+              8, // interest_rate
+            bytes: bs58.encode(Buffer.from([1])), // is_active = true
+          },
+        },
+      ]);
+
+      // Fetch listing details for each loan and filter out invalid ones
+      const enrichedLoans = (
+        await Promise.all(
+          loans.map(async (loan) => {
+            try {
+              const listing = await program.account.nftListing.fetch(
+                loan.account.listing
+              );
+              return {
+                ...loan,
+                listing,
+              };
+            } catch (error) {
+              console.log(
+                `Skipping loan ${loan.publicKey.toString()} - listing not found`
+              );
+              return null;
+            }
+          })
+        )
+      ).filter((loan): loan is NonNullable<typeof loan> => loan !== null);
+
+      // setActiveLoans(enrichedLoans);
+    } catch (error) {
+      console.error("Error fetching loans:", error);
+      toast.error("Failed to fetch active loans");
+    }
+  };
+
+  const handleRepay = async (loan: any) => {
+    if (!wallet.publicKey) {
+      toast.error("Please connect your wallet");
       return;
     }
 
     const toastId = toast.loading("Repaying loan...");
+    setLoading(true);
+
     try {
-      const loanPubkey = new PublicKey(selectedLoan);
-      const loanData = await getLoanData(program, loanPubkey);
-
-      // Get the vault authority PDA
-      const [vaultAuthority] = await findVaultAuthorityPDA(programID);
-
-      // Get or create all necessary ATAs
-      const borrowerCollateralATA = await getOrCreateATA(
-        connection,
-        loanData.collateralMint,
-        publicKey,
-        publicKey,
-        sendTransaction
+      const [vault_authority] = PublicKey.findProgramAddressSync(
+        [Buffer.from(VAULT_AUTHORITY_SEED)],
+        program.programId
       );
 
-      const vaultCollateralATA = await getOrCreateATA(
-        connection,
-        loanData.collateralMint,
-        vaultAuthority,
-        publicKey,
-        sendTransaction
+      const borrowerNftAccount = await getAssociatedTokenAddress(
+        loan.listing.nftMint,
+        wallet.publicKey
       );
-
-      const lenderCollateralATA = await getOrCreateATA(
-        connection,
-        loanData.collateralMint,
-        loanData.lender,
-        publicKey,
-        sendTransaction
+      const vaultNftAccount = await getAssociatedTokenAddress(
+        loan.listing.nftMint,
+        vault_authority,
+        true
       );
-
-      const borrowerNftATA = await getOrCreateATA(
-        connection,
-        loanData.nftMint,
-        publicKey,
-        publicKey,
-        sendTransaction
-      );
-
-      const vaultNftATA = await getOrCreateATA(
-        connection,
-        loanData.nftMint,
-        vaultAuthority,
-        publicKey,
-        sendTransaction
-      );
-
-      const lenderNftATA = await getOrCreateATA(
-        connection,
-        loanData.nftMint,
-        loanData.lender,
-        publicKey,
-        sendTransaction
+      const lenderNftAccount = await getAssociatedTokenAddress(
+        loan.listing.nftMint,
+        loan.listing.lender
       );
 
       await program.methods
         .repayLoan()
         .accounts({
-          borrower: publicKey,
-          loan: loanPubkey,
-          listing: loanData.listing,
-          collateralMint: loanData.collateralMint,
-          borrowerCollateralAccount: borrowerCollateralATA,
-          vaultCollateralAccount: vaultCollateralATA,
-          lenderCollateralAccount: lenderCollateralATA,
-          borrowerNftAccount: borrowerNftATA,
-          vaultNftAccount: vaultNftATA,
-          lenderNftAccount: lenderNftATA,
-          vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          nftMint: loanData.nftMint,
+          borrower: wallet.publicKey,
+          lender: loan.listing.lender,
+          loan: loan.publicKey,
+          listing: loan.account.listing,
+          nftMint: loan.listing.nftMint,
+          borrowerNftAccount,
+          vaultNftAccount,
+          lenderNftAccount,
         })
         .rpc();
 
-      toast.success("Loan repaid successfully!", { id: toastId });
-      setSelectedLoan("");
-    } catch (e) {
-      console.error("Error repaying loan:", e);
-      toast.error(`Failed to repay loan: ${e.message}`, { id: toastId });
+      toast.success("Successfully repaid loan!", { id: toastId });
+      // Refresh loans after successful repayment
+      fetchActiveLoans();
+    } catch (error) {
+      console.error("Error repaying loan:", error);
+      toast.error(`Failed to repay loan: ${error}`, { id: toastId });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLiquidateLoan = async () => {
-    if (!publicKey || !selectedLoan) {
-      toast.error("Please select a loan to liquidate");
+  const fetchLiquidatableLoans = async () => {
+    if (!program) return;
+
+    try {
+      // Get all active Loan accounts
+      const loans = await program.account.loan.all([
+        {
+          memcmp: {
+            offset:
+              8 + // discriminator
+              32 + // borrower
+              32 + // listing
+              8 + // start_time
+              8 + // end_time
+              8 + // collateral_amount
+              8, // interest_rate
+            bytes: bs58.encode(Buffer.from([1])), // is_active = true
+          },
+        },
+      ]);
+
+      // Filter loans that are past their end time
+      const currentTime = Math.floor(Date.now() / 1000);
+      const expiredLoans = loans.filter(
+        (loan) => loan.account.endTime < currentTime
+      );
+
+      // Fetch listing details for each expired loan and filter out invalid ones
+      const enrichedLoans = (
+        await Promise.all(
+          expiredLoans.map(async (loan) => {
+            try {
+              const listing = await program.account.nftListing.fetch(
+                loan.account.listing
+              );
+              return {
+                ...loan,
+                listing,
+                timeOverdue: currentTime - loan.account.endTime,
+              };
+            } catch (error) {
+              // If we can't fetch the listing, the loan has likely been liquidated
+              // Return null to filter it out
+              return null;
+            }
+          })
+        )
+      ).filter((loan): loan is NonNullable<typeof loan> => loan !== null);
+
+      // setLiquidatableLoans(enrichedLoans);
+    } catch (error) {
+      console.error("Error fetching liquidatable loans:", error);
+      toast.error("Failed to fetch liquidatable loans");
+    }
+  };
+
+  const handleLiquidate = async (loan: any) => {
+    if (!wallet.publicKey) {
+      toast.error("Please connect your wallet");
       return;
     }
 
     const toastId = toast.loading("Liquidating loan...");
+    setLoading(true);
+
     try {
-      const loanPubkey = new PublicKey(selectedLoan);
-      const loanData = await getLoanData(program, loanPubkey);
-
-      // Get the vault authority PDA
-      const [vaultAuthority] = await findVaultAuthorityPDA(programID);
-
-      // Get or create necessary ATAs
-      const vaultCollateralATA = await getOrCreateATA(
-        connection,
-        loanData.collateralMint,
-        vaultAuthority,
-        publicKey,
-        sendTransaction
-      );
-
-      const lenderCollateralATA = await getOrCreateATA(
-        connection,
-        loanData.collateralMint,
-        loanData.lender,
-        publicKey,
-        sendTransaction
+      const [vault_authority] = PublicKey.findProgramAddressSync(
+        [Buffer.from(VAULT_AUTHORITY_SEED)],
+        program.programId
       );
 
       await program.methods
         .liquidateLoan()
         .accounts({
-          liquidator: publicKey,
-          loan: loanPubkey,
-          listing: loanData.listing,
-          collateralMint: loanData.collateralMint,
-          vaultCollateralAccount: vaultCollateralATA,
-          lenderCollateralAccount: lenderCollateralATA,
-          vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          liquidator: wallet.publicKey,
+          lender: loan.listing.lender,
+          loan: loan.publicKey,
+          listing: loan.account.listing,
         })
         .rpc();
 
-      toast.success("Loan liquidated successfully!", { id: toastId });
-      setSelectedLoan("");
-    } catch (e) {
-      console.error("Error liquidating loan:", e);
-      toast.error(`Failed to liquidate loan: ${e.message}`, { id: toastId });
+      toast.success("Successfully liquidated loan!", { id: toastId });
+      // Refresh the list after successful liquidation
+      fetchLiquidatableLoans();
+    } catch (error) {
+      console.error("Error liquidating loan:", error);
+      toast.error(`Failed to liquidate loan: ${error}`, {
+        id: toastId,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -609,7 +715,8 @@ export function LendDashboard() {
               </div>
             )}
             <div className="p-6 border border-cyan-800 rounded-lg bg-black/50 backdrop-blur relative overflow-hidden">
-              <div className="space-y-4 ">
+              <h3 className="text-xl mb-4 text-cyan-400">List NFT</h3>
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm mb-2 text-cyan-500">
                     NFT Mint Address
@@ -648,7 +755,7 @@ export function LendDashboard() {
                 </div>
                 <div>
                   <label className="block text-sm mb-2 text-cyan-500">
-                    Collateral Amount
+                    Collateral Amount (lamports)
                   </label>
                   <input
                     type="number"
@@ -660,11 +767,19 @@ export function LendDashboard() {
                 </div>
                 <button
                   onClick={handleListNFT}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded hover:from-cyan-500 hover:to-purple-500 transition-all"
+                  disabled={
+                    loading ||
+                    !nftMint ||
+                    !loanDuration ||
+                    !interestRate ||
+                    !collateralAmount
+                  }
+                  className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded 
+                    hover:from-cyan-500 hover:to-purple-500 transition-all disabled:opacity-50 
+                    disabled:cursor-not-allowed"
                 >
-                  List NFT
+                  {loading ? "Processing..." : "List NFT"}
                 </button>
-                {/* Add more buttons as needed */}
               </div>
             </div>
             <div className="space-y-4">
@@ -740,7 +855,7 @@ export function LendDashboard() {
                     />
                   </div>
                   <button
-                    onClick={handleRepayLoan}
+                    onClick={handleRepay}
                     disabled={!publicKey || !selectedLoan}
                     className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded 
                       hover:from-cyan-500 hover:to-purple-500 transition-all disabled:opacity-50 
@@ -767,7 +882,7 @@ export function LendDashboard() {
                     />
                   </div>
                   <button
-                    onClick={handleLiquidateLoan}
+                    onClick={handleLiquidate}
                     disabled={!publicKey || !selectedLoan}
                     className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded 
                       hover:from-cyan-500 hover:to-purple-500 transition-all disabled:opacity-50 
