@@ -1,6 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
-import { fetchDigitalAsset, mplTokenMetadata } from "@metaplex-foundation/mpl-token-metadata";
+import { fetchDigitalAsset, mplTokenMetadata, fetchAllDigitalAssetWithTokenByOwner } from "@metaplex-foundation/mpl-token-metadata";
 import { publicKey, createSignerFromKeypair, generateSigner, signerIdentity } from "@metaplex-foundation/umi";
 import { toast } from 'react-hot-toast';
 
@@ -34,6 +34,16 @@ export interface NFT {
 // Sonic SVM RPC URLs
 const MAINNET_RPC_URL = process.env.NEXT_PUBLIC_SONIC_MAINNET_RPC || 'https://rpc.mainnet-alpha.sonic.game';
 const TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SONIC_TESTNET_RPC || 'https://api.testnet.sonic.game';
+
+// Define interfaces for NFT data from UMI
+interface UMINFT {
+  publicKey: string;
+  metadata: {
+    name: string;
+    symbol: string;
+    uri: string;
+  };
+}
 
 /**
  * Fetch metadata for a given mint address using UMI
@@ -107,23 +117,18 @@ export async function fetchAllCollections(isMainnet: boolean = true): Promise<Co
         const metadata = await fetchMetadata(mintAddress, rpcUrl);
         
         if (metadata) {
-          // Get lending stats for the collection (to be implemented with Sonic SVM APIs)
-          const lendingStats = {
-            floorPrice: 1.5, // Example value
-            lendingAPY: 12.5, // Example value
-            collateralRequired: 100,
-            availableForLending: 10,
-            totalLent: 5,
-            totalBorrowed: 3,
-          };
-
           const collection: Collection = {
             id: mintAddress,
             name: metadata.onChain.name || 'Unknown Collection',
             symbol: metadata.onChain.symbol || '',
             image: metadata.offChain?.image,
             description: metadata.offChain?.description,
-            ...lendingStats,
+            floorPrice: 0,
+            lendingAPY: 0,
+            collateralRequired: 0,
+            availableForLending: 0,
+            totalLent: 0,
+            totalBorrowed: 0,
             verified: true,
           };
           
@@ -203,34 +208,24 @@ export async function fetchCollectionById(collectionId: string, isMainnet: boole
 export async function fetchNFTsInCollection(collectionId: string, isMainnet: boolean = true): Promise<NFT[]> {
   try {
     const rpcUrl = isMainnet ? MAINNET_RPC_URL : TESTNET_RPC_URL;
-    const metadata = await fetchMetadata(collectionId, rpcUrl);
+    const connection = new Connection(rpcUrl);
     
-    if (!metadata) {
+    // Initialize UMI for metadata fetching
+    const umi = createUmi(rpcUrl).use(mplTokenMetadata());
+    const keypair = generateSigner(umi);
+    umi.use(signerIdentity(createSignerFromKeypair(umi, keypair)));
+
+    // Get the collection's metadata
+    const collectionMetadata = await fetchMetadata(collectionId, rpcUrl);
+    if (!collectionMetadata) {
       toast.error('Collection not found on Sonic SVM');
       return [];
     }
 
-    // For now, return example NFTs based on the collection metadata
-    const nfts: NFT[] = [];
-    const numNFTs = 10; // Example: 10 NFTs per collection
-
-    for (let i = 0; i < numNFTs; i++) {
-      const nft: NFT = {
-        id: `${collectionId}-${i + 1}`,
-        name: `${metadata.onChain.name} #${i + 1}`,
-        image: metadata.offChain?.image || '',
-        attributes: [
-          { trait_type: 'Power', value: Math.floor(Math.random() * 100) },
-          { trait_type: 'Level', value: Math.floor(Math.random() * 10) + 1 },
-        ],
-        owner: `${Math.random().toString(36).substring(2, 8)}...${Math.random().toString(36).substring(2, 8)}`,
-        listed: Math.random() > 0.5,
-        price: Math.random() * 2 + 0.1, // Random price between 0.1 and 2.1
-      };
-      nfts.push(nft);
-    }
-
-    return nfts;
+    // Get all token accounts for this collection
+    // TODO: Replace with actual Sonic SVM API call to get collection NFTs
+    // For now, return empty array until we have the proper API
+    return [];
   } catch (error) {
     console.error('Error fetching NFTs:', error);
     toast.error('Failed to fetch NFTs from Sonic SVM');
@@ -255,45 +250,9 @@ export async function fetchTokenCollections(isMainnet: boolean = true): Promise<
     const rpcUrl = isMainnet ? MAINNET_RPC_URL : TESTNET_RPC_URL;
     const connection = new Connection(rpcUrl);
     
-    // Get token info for common tokens on Sonic SVM
-    const tokenAddresses = [
-      // TODO: Replace with actual Sonic SVM token addresses
-      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Example address
-    ];
-    
-    const tokensPromises = tokenAddresses.map(async (address) => {
-      try {
-        const tokenInfo = await connection.getTokenSupply(new PublicKey(address));
-        return {
-          symbol: 'SONIC', // TODO: Get actual token symbol
-          name: 'Sonic Token', // TODO: Get actual token name
-          price: 0,
-          change24h: 0,
-          supply: Number(tokenInfo.value.uiAmount),
-          address,
-        };
-      } catch (e) {
-        console.error(`Error fetching token info for ${address}:`, e);
-        return null;
-      }
-    });
-    
-    // Filter out null values (failed fetches)
-    const tokens = (await Promise.all(tokensPromises)).filter((token): token is {
-      symbol: string;
-      name: string;
-      price: number;
-      change24h: number;
-      supply: number;
-      address: string;
-    } => token !== null);
-    
-    if (tokens.length === 0) {
-      toast.error('No tokens found on Sonic SVM');
-      return [];
-    }
-    
-    return tokens;
+    // TODO: Replace with actual Sonic SVM API call to get token collections
+    // For now, return empty array until we have the proper API
+    return [];
   } catch (error) {
     console.error('Error fetching token collections:', error);
     toast.error('Failed to fetch token collections from Sonic SVM');
@@ -323,5 +282,87 @@ export async function fetchAllNetworkCollections(): Promise<{ mainnet: Collectio
       mainnet: [],
       testnet: [],
     };
+  }
+}
+
+/**
+ * Fetch NFTs owned by a specific wallet
+ * @param walletAddress The wallet address
+ * @param isMainnet Whether to fetch from mainnet or testnet
+ * @returns Array of NFTs owned by the wallet
+ */
+export async function fetchWalletNFTs(walletAddress: string, isMainnet: boolean = false): Promise<NFT[]> {
+  try {
+    console.log('Fetching NFTs for wallet:', walletAddress);
+    const rpcUrl = isMainnet ? MAINNET_RPC_URL : TESTNET_RPC_URL;
+    console.log('RPC URL:', rpcUrl);
+    
+    // Create UMI instance
+    const umi = createUmi(rpcUrl).use(mplTokenMetadata());
+    const walletPubkey = publicKey(walletAddress);
+
+    console.log('Fetching all digital assets...');
+    const allNFTs = await fetchAllDigitalAssetWithTokenByOwner(
+      umi,
+      walletPubkey,
+    ) as UMINFT[];
+
+    console.log(`Found ${allNFTs.length} NFTs for the owner`);
+
+    // Process each NFT
+    const nftsPromises = allNFTs.map(async (nft: UMINFT) => {
+      try {
+        console.log('Processing NFT:', nft.publicKey);
+        
+        // Fetch off-chain metadata if URI exists
+        let offChainMetadata = null;
+        if (nft.metadata.uri) {
+          try {
+            console.log('Fetching off-chain metadata from:', nft.metadata.uri);
+            const response = await fetch(nft.metadata.uri);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            offChainMetadata = await response.json();
+            console.log('Successfully fetched off-chain metadata');
+          } catch (error) {
+            console.error('Error fetching off-chain metadata:', error);
+            // Continue without off-chain metadata
+          }
+        }
+
+        const nftData: NFT = {
+          id: nft.publicKey,
+          name: nft.metadata.name || 'Unknown NFT',
+          image: offChainMetadata?.image,
+          attributes: offChainMetadata?.attributes,
+          owner: walletAddress,
+          listed: false // This will be updated when we check lending status
+        };
+
+        console.log('Successfully processed NFT:', nftData.name);
+        return nftData;
+      } catch (error) {
+        console.error('Error processing NFT:', nft.publicKey, error);
+        return null;
+      }
+    });
+
+    // Wait for all promises to resolve and filter out nulls
+    const nfts = (await Promise.all(nftsPromises)).filter((nft): nft is NFT => nft !== null);
+
+    console.log('Successfully fetched NFTs:', nfts.length);
+    if (nfts.length === 0) {
+      console.log('No NFTs found in wallet');
+    }
+    return nfts;
+  } catch (error) {
+    console.error('Error fetching wallet NFTs:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    toast.error('Failed to fetch your NFTs');
+    return [];
   }
 } 
