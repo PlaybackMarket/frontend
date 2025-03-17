@@ -3,6 +3,8 @@ import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { fetchDigitalAsset, mplTokenMetadata } from "@metaplex-foundation/mpl-token-metadata";
 import { publicKey, createSignerFromKeypair, generateSigner, signerIdentity } from "@metaplex-foundation/umi";
 import { toast } from 'react-hot-toast';
+import { Program, AnchorProvider } from '@coral-xyz/anchor';
+import { clusterApiUrl } from '@solana/web3.js';
 
 // Define the collection interface
 export interface Collection {
@@ -34,6 +36,16 @@ export interface NFT {
 // Sonic SVM RPC URLs
 const MAINNET_RPC_URL = process.env.NEXT_PUBLIC_SONIC_MAINNET_RPC || 'https://rpc.mainnet-alpha.sonic.game';
 const TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SONIC_TESTNET_RPC || 'https://api.testnet.sonic.game';
+
+// Add interface for NFTListing from smart contract
+export interface NFTListing {
+  lender: PublicKey;
+  nftMint: PublicKey;
+  loanDuration: number;
+  interestRate: number;
+  collateralAmount: number;
+  isActive: boolean;
+}
 
 /**
  * Fetch metadata for a given mint address using UMI
@@ -323,5 +335,80 @@ export async function fetchAllNetworkCollections(): Promise<{ mainnet: Collectio
       mainnet: [],
       testnet: [],
     };
+  }
+}
+
+/**
+ * Fetch active NFT listings from the smart contract
+ * @param collectionId Optional collection ID to filter listings
+ * @param isMainnet Whether to fetch from mainnet or testnet
+ * @returns Array of active lending offers
+ */
+export async function fetchActiveListings(
+  collectionId?: string,
+  isMainnet: boolean = true
+): Promise<LendingOffer[]> {
+  try {
+    const rpcUrl = isMainnet ? MAINNET_RPC_URL : TESTNET_RPC_URL;
+    const connection = new Connection(rpcUrl);
+
+    // Initialize Anchor provider and program
+    const provider = new AnchorProvider(
+      connection,
+      // Use a dummy wallet since we're only reading data
+      {
+        publicKey: PublicKey.default,
+        signTransaction: async () => { throw new Error('Not implemented'); },
+        signAllTransactions: async () => { throw new Error('Not implemented'); },
+      },
+      { commitment: 'confirmed' }
+    );
+
+    const program = new Program(idl as any, new PublicKey(idl.address), provider);
+
+    // Fetch all NFT listings from the program
+    const listings = await program.account.nftListing.all();
+
+    // Filter active listings
+    const activeListings = listings.filter(
+      (listing) => listing.account.isActive
+    );
+
+    // Convert listings to LendingOffers
+    const offers = await Promise.all(
+      activeListings.map(async (listing) => {
+        const nftMint = listing.account.nftMint.toString();
+        
+        // If collectionId is provided, filter listings for that collection
+        if (collectionId && !nftMint.startsWith(collectionId)) {
+          return null;
+        }
+
+        // Fetch NFT metadata
+        const metadata = await fetchMetadata(nftMint, rpcUrl);
+        if (!metadata) return null;
+
+        return {
+          id: listing.publicKey.toString(),
+          nftId: nftMint,
+          nftName: metadata.onChain.name,
+          nftImage: metadata.offChain?.image || `https://via.placeholder.com/150?text=${metadata.onChain.name}`,
+          collection: metadata.onChain.symbol,
+          lender: listing.account.lender.toString(),
+          loanDuration: listing.account.loanDuration / (24 * 60 * 60), // Convert seconds to days
+          interestRate: listing.account.interestRate / 100, // Convert basis points to percentage
+          collateralRequired: listing.account.collateralAmount / 1e9, // Convert lamports to SOL
+          listedAt: Math.floor(Date.now() / 1000), // Current timestamp as listing time
+          floorPrice: 0, // This should be updated with actual floor price
+        };
+      })
+    );
+
+    // Filter out null values
+    return offers.filter((offer): offer is LendingOffer => offer !== null);
+  } catch (error) {
+    console.error('Error fetching active listings:', error);
+    toast.error('Failed to fetch active listings');
+    return [];
   }
 } 
