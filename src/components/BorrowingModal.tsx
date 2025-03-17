@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { borrowNFT } from '@/services/lendingService';
 import { toast } from 'react-hot-toast';
 import { PublicKey } from '@solana/web3.js';
@@ -22,13 +21,13 @@ interface LendingOffer {
 
 interface BorrowingModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onCloseAction: () => void;
   offer?: LendingOffer;
 }
 
 export function BorrowingModal({
   isOpen,
-  onClose,
+  onCloseAction,
   offer,
 }: BorrowingModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,7 +64,7 @@ export function BorrowingModal({
       );
 
       toast.success('NFT borrowed successfully!');
-      onClose();
+      onCloseAction();
     } catch (error) {
       console.error('Error borrowing NFT:', error);
       toast.error('Failed to borrow NFT. Please try again.');
@@ -88,7 +87,7 @@ export function BorrowingModal({
       <div className='bg-gray-900 border border-gray-800 rounded-lg w-full max-w-md p-6 shadow-xl'>
         <div className='flex justify-between items-center mb-4'>
           <h2 className='text-xl font-bold text-white'>Borrow NFT</h2>
-          <button onClick={onClose} className='text-gray-400 hover:text-white'>
+          <button onClick={onCloseAction} className='text-gray-400 hover:text-white'>
             <svg
               xmlns='http://www.w3.org/2000/svg'
               width='24'

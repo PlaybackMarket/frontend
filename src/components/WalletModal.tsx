@@ -1,158 +1,200 @@
 'use client';
 
-import { WalletReadyState } from '@solana/wallet-adapter-base';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
+import {
+  useWallet,
+  WalletReadyState,
+  Wallet as SolanaWallet,
+} from '@solana/wallet-adapter-react';
+import { UnsafeBurnerWalletAdapter } from '@solana/wallet-adapter-wallets';
 
 interface WalletModalProps {
-  isOpen: boolean;
   onClose: () => void;
 }
 
-export function WalletModal({ isOpen, onClose }: WalletModalProps) {
-  const { select, wallets } = useWallet();
-  const modalRef = useRef<HTMLDivElement>(null);
+export function WalletModal({ onClose }: WalletModalProps) {
+  const [mounted, setMounted] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
+  const {
+    wallets,
+    select,
+    connecting,
+    connected,
+    disconnect,
+    wallet: selectedAdapter,
+    publicKey,
+  } = useWallet();
 
-  const supportedWalletNames = ['Phantom', 'Solflare', 'Backpack', 'Nightly'];
-  const filteredWallets = wallets.filter(
-    (wallet) =>
-      supportedWalletNames.includes(wallet.adapter.name) &&
-      wallet.readyState === WalletReadyState.Installed
-  );
-
-  // Close modal when clicking outside
+  // Handle mounting
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        modalRef.current &&
-        !modalRef.current.contains(event.target as Node)
-      ) {
-        onClose();
-      }
-    }
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
+  const handleWalletSelect = (wallet: SolanaWallet) => {
+    setSelectedWallet(wallet.adapter.name);
+    select(wallet.adapter.name);
+  };
 
-  // Close modal with ESC key
-  useEffect(() => {
-    function handleEscKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    }
+  const handleClose = () => {
+    onClose();
+  };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscKey);
+  // Safe check for WalletReadyState
+  const isWalletReady = (wallet: SolanaWallet) => {
+    try {
+      return wallet.readyState === WalletReadyState.Installed;
+    } catch (error) {
+      console.error("Error checking wallet ready state:", error);
+      return false;
     }
-    return () => {
-      document.removeEventListener('keydown', handleEscKey);
-    };
-  }, [isOpen, onClose]);
+  };
 
-  if (!isOpen) return null;
+  // Use the safe check function
+  const installedWallets = wallets.filter(isWalletReady);
+
+  const otherWallets = wallets.filter(wallet => {
+    try {
+      return !isWalletReady(wallet) && !(wallet.adapter instanceof UnsafeBurnerWalletAdapter);
+    } catch (error) {
+      console.error("Error filtering other wallets:", error);
+      return false;
+    }
+  });
+
+  // Format wallet address
+  const formatWalletAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Only render wallet content if we're mounted on the client
+  if (!mounted) return null;
 
   return (
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center ${
-        isOpen ? 'visible' : 'invisible'
-      }`}
-    >
-      <div
-        className='absolute inset-0 bg-black bg-opacity-70'
-        onClick={onClose}
-      ></div>
-      <div className='relative bg-gray-900 border border-gray-800 rounded-lg w-full max-w-md p-6 shadow-xl blur-card'>
-        <div className='flex justify-between items-center mb-6'>
-          <h2 className='text-xl font-bold text-white'>Connect Wallet</h2>
-          <button
-            onClick={onClose}
-            className='text-gray-400 hover:text-white blur-text-hover'
-          >
-            <svg
-              xmlns='http://www.w3.org/2000/svg'
-              width='24'
-              height='24'
-              viewBox='0 0 24 24'
-              fill='none'
-              stroke='currentColor'
-              strokeWidth='2'
-              strokeLinecap='round'
-              strokeLinejoin='round'
-            >
-              <line x1='18' y1='6' x2='6' y2='18'></line>
-              <line x1='6' y1='6' x2='18' y2='18'></line>
-            </svg>
-          </button>
-        </div>
+    <Transition.Root show={true} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black bg-opacity-75 transition-opacity" />
+        </Transition.Child>
 
-        {filteredWallets.length > 0 ? (
-          <div className='space-y-4'>
-            {filteredWallets.map((wallet) => (
-              <button
-                key={wallet.adapter.name}
-                onClick={() => {
-                  select(wallet.adapter.name);
-                  onClose();
-                }}
-                className='w-full py-3 px-4 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-all flex items-center gap-3 border border-gray-700 blur-button'
-              >
-                <img
-                  src={wallet.adapter.icon}
-                  alt={wallet.adapter.name}
-                  className='w-6 h-6'
-                />
-                <span className='font-medium'>
-                  Connect with {wallet.adapter.name}
-                </span>
-              </button>
-            ))}
+        <div className="fixed inset-0 z-10 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 translate-y-4"
+              enterTo="opacity-100 translate-y-0"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0"
+              leaveTo="opacity-0 translate-y-4"
+            >
+              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-[#121C31] shadow-xl transition-all max-w-md w-full">
+                <div className="px-6 py-5 border-b border-gray-700">
+                  <Dialog.Title className="text-xl font-medium text-white">
+                    {connected ? 'Wallet Connected' : 'Connect a Wallet'}
+                  </Dialog.Title>
+                </div>
+
+                <div className="p-6">
+                  {connected && publicKey ? (
+                    <div className="text-center">
+                      <div className="bg-[#1F2B47] rounded-lg p-4 mb-4">
+                        <div className="text-sm text-gray-400 mb-1">Connected as</div>
+                        <div className="font-mono text-white break-all">
+                          {formatWalletAddress(publicKey.toString())}
+                        </div>
+                      </div>
+                      <button
+                        onClick={disconnect}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 px-4 rounded-md transition-colors"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ) : connecting ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                      <p className="text-white">Connecting to {selectedWallet}...</p>
+                      <p className="text-gray-400 text-sm mt-2">
+                        Please check your wallet for connection requests
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      {installedWallets.length > 0 && (
+                        <div className="mb-4">
+                          <h3 className="text-white font-medium mb-2">Installed Wallets</h3>
+                          <div className="space-y-2">
+                            {installedWallets.map((wallet) => (
+                              <button
+                                key={wallet.adapter.name}
+                                onClick={() => handleWalletSelect(wallet)}
+                                className="flex items-center w-full bg-[#1F2B47] hover:bg-[#263350] text-white p-3 rounded-md transition-colors"
+                              >
+                                {wallet.adapter.icon && (
+                                  <img
+                                    src={wallet.adapter.icon}
+                                    alt={wallet.adapter.name}
+                                    className="h-6 w-6 mr-3"
+                                  />
+                                )}
+                                <span>{wallet.adapter.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {otherWallets.length > 0 && (
+                        <div>
+                          <h3 className="text-white font-medium mb-2">Other Wallets</h3>
+                          <div className="space-y-2">
+                            {otherWallets.map((wallet) => (
+                              <button
+                                key={wallet.adapter.name}
+                                onClick={() => handleWalletSelect(wallet)}
+                                className="flex items-center w-full bg-[#1F2B47] hover:bg-[#263350] text-white p-3 rounded-md transition-colors"
+                              >
+                                {wallet.adapter.icon && (
+                                  <img
+                                    src={wallet.adapter.icon}
+                                    alt={wallet.adapter.name}
+                                    className="h-6 w-6 mr-3"
+                                  />
+                                )}
+                                <span>{wallet.adapter.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-[#0D1321] px-6 py-4 text-center">
+                  <button
+                    type="button"
+                    className="text-gray-400 hover:text-white transition-colors"
+                    onClick={handleClose}
+                  >
+                    Close
+                  </button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
           </div>
-        ) : (
-          <div className='text-center'>
-            <p className='text-gray-300 mb-4'>No supported wallets found</p>
-            <div className='flex flex-col gap-4'>
-              <a
-                href='https://phantom.app/'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='py-3 px-4 bg-[#FF6B00] text-white rounded-md hover:bg-[#FF8C40] transition-all font-medium blur-button'
-              >
-                Install Phantom
-              </a>
-              <a
-                href='https://solflare.com/'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='py-3 px-4 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-all font-medium blur-button'
-              >
-                Install Solflare
-              </a>
-              <a
-                href='https://www.backpack.app/'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='py-3 px-4 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-all font-medium blur-button'
-              >
-                Install Backpack
-              </a>
-              <a
-                href='https://nightly.app/'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='py-3 px-4 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-all font-medium blur-button'
-              >
-                Install Nightly
-              </a>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+        </div>
+      </Dialog>
+    </Transition.Root>
   );
 }
