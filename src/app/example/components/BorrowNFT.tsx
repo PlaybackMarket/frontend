@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { FC, useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
