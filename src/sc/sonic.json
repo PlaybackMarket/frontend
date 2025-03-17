@@ -1,5 +1,5 @@
 {
-  "address": "BEF3CqKU1Db7FsqHyuugE7xd6YCz7gD3jMi2wA1yeD4x",
+  "address": "7kpZb8kihX7FRtjVNsGYrGZqUmFzzsQSuEPo1zUo35vC",
   "metadata": {
     "name": "sonic",
     "version": "0.1.0",
@@ -35,22 +35,90 @@
           "signer": true
         },
         {
-          "name": "collateral_mint"
-        },
-        {
-          "name": "borrower_collateral_account",
-          "writable": true
-        },
-        {
-          "name": "vault_collateral_account",
-          "writable": true
-        },
-        {
           "name": "borrower_nft_account",
           "writable": true
         },
         {
           "name": "vault_nft_account",
+          "writable": true
+        },
+        {
+          "name": "vault_authority",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "nft_mint"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_listing",
+      "discriminator": [
+        41,
+        183,
+        50,
+        232,
+        230,
+        233,
+        157,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "lender",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "listing",
+          "writable": true
+        },
+        {
+          "name": "nft_mint"
+        },
+        {
+          "name": "vault_nft_account",
+          "writable": true
+        },
+        {
+          "name": "lender_nft_account",
           "writable": true
         },
         {
@@ -83,21 +151,6 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "associated_token_program",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
-          "name": "nft_mint"
         }
       ],
       "args": []
@@ -151,6 +204,10 @@
           "signer": true
         },
         {
+          "name": "lender",
+          "writable": true
+        },
+        {
           "name": "loan",
           "writable": true
         },
@@ -159,18 +216,8 @@
           "writable": true
         },
         {
-          "name": "collateral_mint"
-        },
-        {
-          "name": "vault_collateral_account",
-          "writable": true
-        },
-        {
-          "name": "lender_collateral_account",
-          "writable": true
-        },
-        {
           "name": "vault_authority",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -197,8 +244,8 @@
           }
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -315,6 +362,10 @@
           "signer": true
         },
         {
+          "name": "lender",
+          "writable": true
+        },
+        {
           "name": "loan",
           "writable": true
         },
@@ -323,19 +374,7 @@
           "writable": true
         },
         {
-          "name": "collateral_mint"
-        },
-        {
-          "name": "borrower_collateral_account",
-          "writable": true
-        },
-        {
-          "name": "vault_collateral_account",
-          "writable": true
-        },
-        {
-          "name": "lender_collateral_account",
-          "writable": true
+          "name": "nft_mint"
         },
         {
           "name": "borrower_nft_account",
@@ -351,6 +390,7 @@
         },
         {
           "name": "vault_authority",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -381,7 +421,12 @@
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "nft_mint"
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -468,6 +513,11 @@
       "code": 6007,
       "name": "MathOverflow",
       "msg": "Math overflow"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidTokenBalance",
+      "msg": "Invalid token balance"
     }
   ],
   "types": [

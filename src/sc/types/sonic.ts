@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/sonic.json`.
  */
 export type Sonic = {
-  "address": "BEF3CqKU1Db7FsqHyuugE7xd6YCz7gD3jMi2wA1yeD4x",
+  "address": "7kpZb8kihX7FRtjVNsGYrGZqUmFzzsQSuEPo1zUo35vC",
   "metadata": {
     "name": "sonic",
     "version": "0.1.0",
@@ -41,22 +41,90 @@ export type Sonic = {
           "signer": true
         },
         {
-          "name": "collateralMint"
-        },
-        {
-          "name": "borrowerCollateralAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultCollateralAccount",
-          "writable": true
-        },
-        {
           "name": "borrowerNftAccount",
           "writable": true
         },
         {
           "name": "vaultNftAccount",
+          "writable": true
+        },
+        {
+          "name": "vaultAuthority",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "nftMint"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancelListing",
+      "discriminator": [
+        41,
+        183,
+        50,
+        232,
+        230,
+        233,
+        157,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "lender",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "listing",
+          "writable": true
+        },
+        {
+          "name": "nftMint"
+        },
+        {
+          "name": "vaultNftAccount",
+          "writable": true
+        },
+        {
+          "name": "lenderNftAccount",
           "writable": true
         },
         {
@@ -89,21 +157,6 @@ export type Sonic = {
         {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
-          "name": "nftMint"
         }
       ],
       "args": []
@@ -157,6 +210,10 @@ export type Sonic = {
           "signer": true
         },
         {
+          "name": "lender",
+          "writable": true
+        },
+        {
           "name": "loan",
           "writable": true
         },
@@ -165,18 +222,8 @@ export type Sonic = {
           "writable": true
         },
         {
-          "name": "collateralMint"
-        },
-        {
-          "name": "vaultCollateralAccount",
-          "writable": true
-        },
-        {
-          "name": "lenderCollateralAccount",
-          "writable": true
-        },
-        {
           "name": "vaultAuthority",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -203,8 +250,8 @@ export type Sonic = {
           }
         },
         {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -321,6 +368,10 @@ export type Sonic = {
           "signer": true
         },
         {
+          "name": "lender",
+          "writable": true
+        },
+        {
           "name": "loan",
           "writable": true
         },
@@ -329,19 +380,7 @@ export type Sonic = {
           "writable": true
         },
         {
-          "name": "collateralMint"
-        },
-        {
-          "name": "borrowerCollateralAccount",
-          "writable": true
-        },
-        {
-          "name": "vaultCollateralAccount",
-          "writable": true
-        },
-        {
-          "name": "lenderCollateralAccount",
-          "writable": true
+          "name": "nftMint"
         },
         {
           "name": "borrowerNftAccount",
@@ -357,6 +396,7 @@ export type Sonic = {
         },
         {
           "name": "vaultAuthority",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -387,7 +427,12 @@ export type Sonic = {
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "nftMint"
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -474,6 +519,11 @@ export type Sonic = {
       "code": 6007,
       "name": "mathOverflow",
       "msg": "Math overflow"
+    },
+    {
+      "code": 6008,
+      "name": "invalidTokenBalance",
+      "msg": "Invalid token balance"
     }
   ],
   "types": [
