@@ -9,6 +9,7 @@ import {
   AnchorProvider,
   setProvider,
   type Provider,
+  BN,
 } from "@coral-xyz/anchor";
 
 import {
@@ -67,7 +68,7 @@ const BorrowNFT: FC = () => {
       );
       const program = new Program<Sonic>(idl, {} as Provider);
 
-      const [vaultAuthority] = PublicKey.findProgramAddressSync(
+      const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
         program.programId
       );
@@ -79,7 +80,7 @@ const BorrowNFT: FC = () => {
       );
       const vaultNftAccount = await getAssociatedTokenAddress(
         nftMint,
-        vaultAuthority,
+        vault_authority,
         true
       );
 
@@ -91,7 +92,7 @@ const BorrowNFT: FC = () => {
           loan: loan.publicKey,
           borrowerNftAccount,
           vaultNftAccount,
-          vaultAuthority,
+          vault_authority: vault_authority,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: web3.SystemProgram.programId,
           rent: web3.SYSVAR_RENT_PUBKEY,
@@ -177,7 +178,7 @@ const CancelListing: FC = () => {
       );
       const program = new Program<Sonic>(idl, {} as Provider);
 
-      const [vaultAuthority] = PublicKey.findProgramAddressSync(
+      const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
         program.programId
       );
@@ -188,7 +189,7 @@ const CancelListing: FC = () => {
       );
       const vaultNftAccount = await getAssociatedTokenAddress(
         nftMint,
-        vaultAuthority,
+        vault_authority,
         true
       );
 
@@ -200,7 +201,7 @@ const CancelListing: FC = () => {
           nftMint,
           vaultNftAccount,
           lenderNftAccount,
-          vaultAuthority,
+          vault_authority: vault_authority,
           tokenProgram: TOKEN_PROGRAM_ID,
         })
         .rpc();
@@ -290,10 +291,9 @@ const ListNFT: FC = () => {
         wallet as any,
         AnchorProvider.defaultOptions()
       );
-      const program = new Program<Sonic>(idl, {} as Provider);
+      const program = new Program<Sonic>(idl, provider as Provider);
 
-      const listing = web3.Keypair.generate();
-      const [vaultAuthority] = PublicKey.findProgramAddressSync(
+      const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
         program.programId
       );
@@ -304,7 +304,7 @@ const ListNFT: FC = () => {
       );
       const vaultNftAccount = await getAssociatedTokenAddress(
         nftMint,
-        vaultAuthority,
+        vault_authority,
         true
       );
 
@@ -316,17 +316,11 @@ const ListNFT: FC = () => {
         )
         .accounts({
           lender: wallet.publicKey,
-          listing: listing.publicKey,
+          listing: wallet.publicKey,
           nftMint,
           lenderNftAccount,
           vaultNftAccount,
-          vaultAuthority,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: web3.SystemProgram.programId,
-          rent: web3.SYSVAR_RENT_PUBKEY,
         })
-        .signers([listing])
         .rpc();
 
       toast.success("Successfully listed NFT!", { id: toastId });
@@ -429,7 +423,7 @@ const LiquidateLoan: FC = () => {
       );
       const program = new Program<Sonic>(idl, {} as Provider);
 
-      const [vaultAuthority] = PublicKey.findProgramAddressSync(
+      const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
         program.programId
       );
@@ -441,7 +435,8 @@ const LiquidateLoan: FC = () => {
           lender: lenderAddress,
           loan: loanAddress,
           listing: listingAddress,
-          vaultAuthority,
+
+          vault_authority: vault_authority,
           systemProgram: web3.SystemProgram.programId,
         })
         .rpc();
@@ -540,7 +535,7 @@ const RepayLoan: FC = () => {
       );
       const program = new Program<Sonic>(idl, {} as Provider);
 
-      const [vaultAuthority] = PublicKey.findProgramAddressSync(
+      const [vault_authority] = PublicKey.findProgramAddressSync(
         [Buffer.from(VAULT_AUTHORITY_SEED)],
         program.programId
       );
@@ -551,7 +546,7 @@ const RepayLoan: FC = () => {
       );
       const vaultNftAccount = await getAssociatedTokenAddress(
         nftMint,
-        vaultAuthority,
+        vault_authority,
         true
       );
       const lenderNftAccount = await getAssociatedTokenAddress(
@@ -570,7 +565,7 @@ const RepayLoan: FC = () => {
           borrowerNftAccount,
           vaultNftAccount,
           lenderNftAccount,
-          vaultAuthority,
+          vault_authority: vault_authority,
           tokenProgram: TOKEN_PROGRAM_ID,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: web3.SystemProgram.programId,
