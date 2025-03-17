@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useNetwork, NETWORKS } from "@/contexts/NetworkContext";
-import { useState } from "react";
-import toast from "react-hot-toast";
+import { useNetwork, NETWORKS } from '@/contexts/NetworkContext';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 export function NetworkToggle() {
   const { network, setNetwork } = useNetwork();
@@ -14,56 +14,63 @@ export function NetworkToggle() {
     toast.success(`Switched to ${newNetwork.label}`);
   };
 
+  const getNetworkColor = (networkName: string) => {
+    switch (networkName) {
+      case 'mainnet':
+        return 'bg-[#FF6B00]';
+      case 'testnet':
+        return 'bg-purple-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
   return (
-    <div className="relative">
+    <div className='relative'>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-4 py-2 rounded-md font-mono text-sm transition-colors ${
-          network.name === "mainnet"
-            ? "bg-cyan-900/30 text-cyan-400 hover:bg-cyan-800/40"
-            : "bg-purple-900/30 text-purple-400 hover:bg-purple-800/40"
-        }`}
+        className='flex items-center gap-2 px-3 py-2 rounded-md text-sm border border-gray-700 bg-black hover:border-[#FF6B00] transition-all blur-button'
       >
         <span
-          className={`w-2 h-2 rounded-full ${
-            network.name === "mainnet" ? "bg-cyan-400" : "bg-purple-400"
-          }`}
+          className={`w-2 h-2 rounded-full ${getNetworkColor(network.name)}`}
         ></span>
-        {network.label}
+        <span className='text-white'>{network.label}</span>
+        <svg
+          className='h-4 w-4 text-gray-400'
+          fill='none'
+          stroke='currentColor'
+          viewBox='0 0 24 24'
+          xmlns='http://www.w3.org/2000/svg'
+        >
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            strokeWidth={2}
+            d='M19 9l-7 7-7-7'
+          />
+        </svg>
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 right-0 bg-black/90 border border-cyan-800 rounded-md shadow-lg shadow-cyan-500/20 p-1 z-10 backdrop-blur w-40">
-          <button
-            onClick={() => handleNetworkChange(NETWORKS.MAINNET)}
-            className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 ${
-              network.name === "mainnet"
-                ? "bg-cyan-900/30 text-cyan-400"
-                : "text-cyan-600 hover:bg-cyan-900/20 hover:text-cyan-400"
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                network.name === "mainnet" ? "bg-cyan-400" : "bg-cyan-800"
+        <div className='absolute top-full mt-2 right-0 bg-gray-900 border border-gray-700 rounded-md shadow-lg p-1 z-10 w-40 blur-card'>
+          {Object.values(NETWORKS).map((networkOption) => (
+            <button
+              key={networkOption.name}
+              onClick={() => handleNetworkChange(networkOption)}
+              className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 blur-text-hover ${
+                network.name === networkOption.name
+                  ? 'bg-gray-800 text-white'
+                  : 'text-gray-300 hover:bg-gray-800'
               }`}
-            ></span>
-            {NETWORKS.MAINNET.label}
-          </button>
-          <button
-            onClick={() => handleNetworkChange(NETWORKS.TESTNET)}
-            className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 ${
-              network.name === "testnet"
-                ? "bg-purple-900/30 text-purple-400"
-                : "text-purple-600 hover:bg-purple-900/20 hover:text-purple-400"
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                network.name === "testnet" ? "bg-purple-400" : "bg-purple-800"
-              }`}
-            ></span>
-            {NETWORKS.TESTNET.label}
-          </button>
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${getNetworkColor(
+                  networkOption.name
+                )}`}
+              ></span>
+              {networkOption.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

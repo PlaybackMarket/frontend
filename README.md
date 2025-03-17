@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Playback - Gaming Asset Lending Protocol
+
+Playback is a peer-to-peer lending platform for gaming assets built on Solana. It allows NFT owners to lend their gaming assets and earn interest, while borrowers can access these assets by providing collateral.
+
+## Features
+
+- **Lending**: NFT owners can list their gaming assets for lending, setting loan duration, interest rate, and required collateral.
+- **Borrowing**: Users can borrow NFTs by providing collateral, use them for the loan duration, and return them to get their collateral back.
+- **Portfolio Management**: Track your lending and borrowing activities in one place.
+- **Collection Exploration**: Browse collections and view available lending offers.
+
+## Technical Stack
+
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS
+- **Blockchain**: Solana, Anchor Framework
+- **Wallet Integration**: Solana Wallet Adapter (supports Phantom, Solflare, Backpack, and Nightly)
+
+## Smart Contract Functionality
+
+The protocol implements the following core functions:
+
+1. **List NFT**: Allows an NFT owner to list their asset for lending with specified terms.
+2. **Borrow NFT**: Enables a borrower to deposit collateral and borrow a listed NFT.
+3. **Repay Loan**: Allows a borrower to return the NFT and retrieve their collateral minus interest.
+4. **Liquidate Loan**: Handles the case when a loan is not repaid by the due date.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 16+
+- npm or yarn
+- A Solana wallet (Phantom, Solflare, etc.)
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/playback.git
+cd playback
+
+# Install dependencies
+npm install
+# or
+yarn install
+
+# Start the development server
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Usage
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Connect your Solana wallet using the "Connect Wallet" button.
+2. Browse collections to find NFTs available for lending or borrowing.
+3. To lend an NFT:
+   - Navigate to your NFT in the Collections or Portfolio section
+   - Click "Lend" and set your terms (duration, interest rate, collateral)
+   - Confirm the transaction
+4. To borrow an NFT:
+   - Find an NFT with active lending offers
+   - Click "Borrow" and review the terms
+   - Deposit the required collateral
+   - The NFT will be transferred to your wallet
+5. To repay a loan:
+   - Go to your Portfolio and find the borrowed NFT
+   - Click "Repay" and confirm the transaction
+   - Your collateral will be returned minus the interest
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Development Roadmap
 
-## Learn More
+- **Phase 1**: Core lending and borrowing functionality (current)
+- **Phase 2**: Advanced features (partial repayments, refinancing, etc.)
+- **Phase 3**: Integration with gaming platforms
+- **Phase 4**: Mobile app and expanded blockchain support
 
-To learn more about Next.js, take a look at the following resources:
+## License
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contact
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For questions or support, please reach out to us at support@playback.io
