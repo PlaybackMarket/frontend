@@ -12,5 +12,5 @@ export const PROGRAM_ID = new PublicKey(
 
 export const VAULT_AUTHORITY_SEED = "vault_authority";
 
-export const MAINNET_RPC_URL = clusterApiUrl('mainnet-beta');
-export const TESTNET_RPC_URL = clusterApiUrl('testnet');
+export const MAINNET_RPC_URL = 'https://rpc.mainnet-alpha.sonic.game';
+export const TESTNET_RPC_URL = "https://api.testnet.sonic.game";
